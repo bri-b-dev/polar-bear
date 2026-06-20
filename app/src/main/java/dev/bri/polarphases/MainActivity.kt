@@ -9,9 +9,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dev.bri.polarphases.ui.screen.HrMonitorScreen
+import dev.bri.polarphases.ui.screen.TemplateBuilderScreen
+import dev.bri.polarphases.ui.screen.TemplateListScreen
 import dev.bri.polarphases.ui.screen.ZoneManagementScreen
 import dev.bri.polarphases.ui.theme.PolarPhasesTheme
 import dev.bri.polarphases.viewmodel.BleViewModel
+import dev.bri.polarphases.viewmodel.TemplateBuilderViewModel
+import dev.bri.polarphases.viewmodel.TemplateListViewModel
 import dev.bri.polarphases.viewmodel.ZoneViewModel
 
 class MainActivity : ComponentActivity() {
@@ -27,12 +31,28 @@ class MainActivity : ComponentActivity() {
                         HrMonitorScreen(
                             viewModel = bleViewModel,
                             onNavigateToZones = { navController.navigate("zones") },
+                            onNavigateToTemplates = { navController.navigate("templates") },
                         )
                     }
                     composable("zones") {
                         val zoneViewModel: ZoneViewModel = viewModel()
                         ZoneManagementScreen(
                             viewModel = zoneViewModel,
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+                    composable("templates") {
+                        val templateListViewModel: TemplateListViewModel = viewModel()
+                        TemplateListScreen(
+                            viewModel = templateListViewModel,
+                            onBack = { navController.popBackStack() },
+                            onNewTemplate = { navController.navigate("template_builder") },
+                        )
+                    }
+                    composable("template_builder") {
+                        val templateBuilderViewModel: TemplateBuilderViewModel = viewModel()
+                        TemplateBuilderScreen(
+                            viewModel = templateBuilderViewModel,
                             onBack = { navController.popBackStack() },
                         )
                     }
