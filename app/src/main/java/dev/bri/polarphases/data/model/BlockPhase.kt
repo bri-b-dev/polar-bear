@@ -23,5 +23,5 @@ data class BlockPhase(
     val sortOrder: Int,
     val phaseName: String,
     val durationSeconds: Int,
-    val zoneId: Long,
+    val zoneIds: String, // comma-separated zone IDs, never empty
 )

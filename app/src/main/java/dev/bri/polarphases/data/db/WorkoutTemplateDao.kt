@@ -33,6 +33,9 @@ interface WorkoutTemplateDao {
     @Insert
     suspend fun insertSequenceItem(item: TemplateSequenceItem): Long
 
+    @Query("DELETE FROM template_sequence_items WHERE templateId = :templateId")
+    suspend fun deleteAllSequenceItemsForTemplate(templateId: Long)
+
     @Insert
     suspend fun insertBlockPhase(phase: BlockPhase): Long
 }

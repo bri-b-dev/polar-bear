@@ -5,9 +5,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import dev.bri.polarphases.ui.screen.HrMonitorScreen
 import dev.bri.polarphases.ui.screen.TemplateBuilderScreen
 import dev.bri.polarphases.ui.screen.TemplateListScreen
@@ -17,6 +19,7 @@ import dev.bri.polarphases.viewmodel.BleViewModel
 import dev.bri.polarphases.viewmodel.TemplateBuilderViewModel
 import dev.bri.polarphases.viewmodel.TemplateListViewModel
 import dev.bri.polarphases.viewmodel.ZoneViewModel
+import androidx.compose.runtime.LaunchedEffect
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,11 +49,24 @@ class MainActivity : ComponentActivity() {
                         TemplateListScreen(
                             viewModel = templateListViewModel,
                             onBack = { navController.popBackStack() },
-                            onNewTemplate = { navController.navigate("template_builder") },
+                            onNewTemplate = { navController.navigate("template_builder/0") },
+                            onEditTemplate = { id -> navController.navigate("template_builder/$id") },
                         )
                     }
-                    composable("template_builder") {
+                    composable(
+                        route = "template_builder/{templateId}",
+                        arguments = listOf(
+                            navArgument("templateId") {
+                                type = NavType.LongType
+                                defaultValue = 0L
+                            }
+                        ),
+                    ) { backStackEntry ->
+                        val templateId = backStackEntry.arguments?.getLong("templateId") ?: 0L
                         val templateBuilderViewModel: TemplateBuilderViewModel = viewModel()
+                        LaunchedEffect(templateId) {
+                            if (templateId > 0L) templateBuilderViewModel.loadTemplate(templateId)
+                        }
                         TemplateBuilderScreen(
                             viewModel = templateBuilderViewModel,
                             onBack = { navController.popBackStack() },

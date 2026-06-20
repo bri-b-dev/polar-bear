@@ -16,6 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (Placeholder for fixes)
 
+## [0.3.1] - 2026-06-20
+
+### Added
+- Edit existing phases and blocks in-place (edit icon on each card, dialog pre-filled with current values)
+- Multi-zone support per phase: select multiple HR zones (e.g. Gray + Blue for a cooldown)
+- Editing existing templates: edit icon on template list opens builder with all content pre-loaded; save renames and replaces sequence atomically
+- Editing blocks: change repeat count, add/remove phases within a block via the block edit dialog
+
+### Changed
+- Default phase duration changed from 0:30 to 5:00
+- Template list row: rename dialog replaced by full-content edit (name editable at top of builder)
+- Database migrated from version 2 to 3: `zoneId INTEGER` column replaced by `zoneIds TEXT` (comma-separated) in both `template_sequence_items` and `block_phases`; existing single-zone data preserved
+
 ## [0.3.0] - 2026-06-20
 
 ### Added

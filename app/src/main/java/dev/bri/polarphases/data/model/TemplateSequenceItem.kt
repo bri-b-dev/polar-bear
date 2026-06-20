@@ -24,6 +24,6 @@ data class TemplateSequenceItem(
     val itemType: String, // "PHASE" or "BLOCK"
     val phaseName: String? = null,
     val durationSeconds: Int? = null,
-    val zoneId: Long? = null,
+    val zoneIds: String? = null, // comma-separated zone IDs, null for BLOCK items
     val repeatCount: Int? = null,
 )

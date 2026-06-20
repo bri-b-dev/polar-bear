@@ -1,6 +1,7 @@
 package dev.bri.polarphases.ui.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,16 +23,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -42,9 +41,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,6 +67,7 @@ fun TemplateBuilderScreen(
     val zones by viewModel.zones.collectAsState()
     val isSaved by viewModel.isSaved.collectAsState()
     val validationError by viewModel.validationError.collectAsState()
+    val editingTemplateId by viewModel.editingTemplateId.collectAsState()
 
     LaunchedEffect(isSaved) {
         if (isSaved) onBack()
@@ -79,16 +76,14 @@ fun TemplateBuilderScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("New Template") },
+                title = { Text(if (editingTemplateId != null) "Edit Template" else "New Template") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    TextButton(onClick = { viewModel.saveTemplate() }) {
-                        Text("Save")
-                    }
+                    TextButton(onClick = { viewModel.saveTemplate() }) { Text("Save") }
                 },
             )
         },
@@ -126,10 +121,12 @@ fun TemplateBuilderScreen(
                     when (item) {
                         is SequenceItemDraft.Phase -> PhaseItemCard(
                             item = item,
+                            onEdit = { viewModel.openEditPhaseDialog(index) },
                             onDelete = { viewModel.removeSequenceItem(index) },
                         )
                         is SequenceItemDraft.Block -> BlockItemCard(
                             item = item,
+                            onEdit = { viewModel.openEditBlockDialog(index) },
                             onDelete = { viewModel.removeSequenceItem(index) },
                         )
                     }
@@ -169,6 +166,7 @@ fun TemplateBuilderScreen(
             form = phaseDialog!!,
             zones = zones,
             onUpdate = viewModel::updatePhaseForm,
+            onToggleZone = viewModel::togglePhaseZone,
             onConfirm = viewModel::confirmAddPhase,
             onDismiss = viewModel::dismissPhaseDialog,
         )
@@ -180,6 +178,7 @@ fun TemplateBuilderScreen(
             zones = zones,
             onRepeatCountChange = viewModel::updateBlockRepeatCount,
             onUpdatePhase = viewModel::updateBlockPhase,
+            onToggleBlockPhaseZone = viewModel::toggleBlockPhaseZone,
             onAddPhase = viewModel::addPhaseToBlock,
             onRemovePhase = viewModel::removePhaseFromBlock,
             onConfirm = viewModel::confirmAddBlock,
@@ -188,8 +187,14 @@ fun TemplateBuilderScreen(
     }
 }
 
+// ── Sequence cards ────────────────────────────────────────────────────────────
+
 @Composable
-private fun PhaseItemCard(item: SequenceItemDraft.Phase, onDelete: () -> Unit) {
+private fun PhaseItemCard(
+    item: SequenceItemDraft.Phase,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -197,20 +202,22 @@ private fun PhaseItemCard(item: SequenceItemDraft.Phase, onDelete: () -> Unit) {
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size(24.dp)
-                .clip(CircleShape)
-                .background(Color(item.zoneColorArgb)),
-        )
+        ZoneDots(colors = item.zoneColors, size = 20)
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(item.name, style = MaterialTheme.typography.titleSmall)
             Text(
-                "${item.zoneName} · ${formatDuration(item.durationSeconds)}",
+                buildString {
+                    append(item.zoneNames.joinToString(" · "))
+                    append(" · ")
+                    append(formatDuration(item.durationSeconds))
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        IconButton(onClick = onEdit) {
+            Icon(Icons.Default.Edit, contentDescription = "Edit phase")
         }
         IconButton(onClick = onDelete) {
             Icon(Icons.Default.Delete, contentDescription = "Remove phase")
@@ -219,7 +226,11 @@ private fun PhaseItemCard(item: SequenceItemDraft.Phase, onDelete: () -> Unit) {
 }
 
 @Composable
-private fun BlockItemCard(item: SequenceItemDraft.Block, onDelete: () -> Unit) {
+private fun BlockItemCard(
+    item: SequenceItemDraft.Block,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -241,6 +252,9 @@ private fun BlockItemCard(item: SequenceItemDraft.Block, onDelete: () -> Unit) {
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.weight(1f),
             )
+            IconButton(onClick = onEdit) {
+                Icon(Icons.Default.Edit, contentDescription = "Edit block")
+            }
             IconButton(onClick = onDelete) {
                 Icon(Icons.Default.Delete, contentDescription = "Remove block")
             }
@@ -251,18 +265,27 @@ private fun BlockItemCard(item: SequenceItemDraft.Block, onDelete: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(start = 8.dp, bottom = 4.dp),
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(14.dp)
-                        .clip(CircleShape)
-                        .background(Color(phase.zoneColorArgb)),
-                )
+                ZoneDots(colors = phase.zoneColors, size = 14)
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    "${phase.name} · ${phase.zoneName} · ${formatDuration(phase.durationSeconds)}",
+                    "${phase.name} · ${phase.zoneNames.joinToString(" · ")} · ${formatDuration(phase.durationSeconds)}",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ZoneDots(colors: List<Int>, size: Int) {
+    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        colors.forEach { color ->
+            Box(
+                modifier = Modifier
+                    .size(size.dp)
+                    .clip(CircleShape)
+                    .background(Color(color)),
+            )
         }
     }
 }
@@ -273,18 +296,20 @@ private fun formatDuration(totalSeconds: Int): String {
     return "%d:%02d".format(m, s)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+// ── Phase dialog ──────────────────────────────────────────────────────────────
+
 @Composable
 private fun PhaseDialog(
     form: PhaseFormState,
     zones: List<HrZone>,
     onUpdate: (PhaseFormState.() -> PhaseFormState) -> Unit,
+    onToggleZone: (Long) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Phase") },
+        title = { Text(if (form.editingIndex != null) "Edit Phase" else "Add Phase") },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -315,25 +340,31 @@ private fun PhaseDialog(
                         modifier = Modifier.weight(1f),
                     )
                 }
-                ZonePicker(
-                    selectedZoneId = form.zoneId,
+                ZoneMultiPicker(
+                    selectedZoneIds = form.zoneIds,
                     zones = zones,
-                    onZoneSelected = { id -> onUpdate { copy(zoneId = id) } },
+                    onToggle = onToggleZone,
                 )
             }
         },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("Add") } },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(if (form.editingIndex != null) "Save" else "Add")
+            }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+// ── Block dialog ──────────────────────────────────────────────────────────────
+
 @Composable
 private fun BlockDialog(
     form: BlockFormState,
     zones: List<HrZone>,
     onRepeatCountChange: (String) -> Unit,
     onUpdatePhase: (Int, BlockPhaseForm.() -> BlockPhaseForm) -> Unit,
+    onToggleBlockPhaseZone: (Int, Long) -> Unit,
     onAddPhase: () -> Unit,
     onRemovePhase: (Int) -> Unit,
     onConfirm: () -> Unit,
@@ -341,13 +372,13 @@ private fun BlockDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Repeat Block") },
+        title = { Text(if (form.editingIndex != null) "Edit Block" else "Add Repeat Block") },
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 420.dp)
+                    .heightIn(max = 480.dp)
                     .verticalScroll(rememberScrollState()),
             ) {
                 OutlinedTextField(
@@ -366,6 +397,7 @@ private fun BlockDialog(
                         zones = zones,
                         canRemove = form.phases.size > 2,
                         onUpdate = { update -> onUpdatePhase(index, update) },
+                        onToggleZone = { zoneId -> onToggleBlockPhaseZone(index, zoneId) },
                         onRemove = { onRemovePhase(index) },
                     )
                     if (index < form.phases.lastIndex) {
@@ -378,12 +410,15 @@ private fun BlockDialog(
                 ) { Text("+ Add phase to block") }
             }
         },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("Add Block") } },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(if (form.editingIndex != null) "Save" else "Add Block")
+            }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BlockPhaseFormRow(
     index: Int,
@@ -391,6 +426,7 @@ private fun BlockPhaseFormRow(
     zones: List<HrZone>,
     canRemove: Boolean,
     onUpdate: (BlockPhaseForm.() -> BlockPhaseForm) -> Unit,
+    onToggleZone: (Long) -> Unit,
     onRemove: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -438,68 +474,46 @@ private fun BlockPhaseFormRow(
                 modifier = Modifier.weight(1f),
             )
         }
-        ZonePicker(
-            selectedZoneId = form.zoneId,
+        ZoneMultiPicker(
+            selectedZoneIds = form.zoneIds,
             zones = zones,
-            onZoneSelected = { id -> onUpdate { copy(zoneId = id) } },
+            onToggle = onToggleZone,
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ZonePicker(
-    selectedZoneId: Long?,
-    zones: List<HrZone>,
-    onZoneSelected: (Long) -> Unit,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val selectedZone = zones.find { it.id == selectedZoneId }
+// ── Zone multi-picker ─────────────────────────────────────────────────────────
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-    ) {
-        OutlinedTextField(
-            value = selectedZone?.name ?: "Select zone",
-            onValueChange = {},
-            readOnly = true,
-            label = { Text("Zone") },
-            leadingIcon = if (selectedZone != null) {
-                {
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clip(CircleShape)
-                            .background(Color(selectedZone.colorArgb)),
-                    )
-                }
-            } else null,
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable),
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            zones.forEach { zone ->
-                DropdownMenuItem(
-                    text = { Text(zone.name) },
-                    leadingIcon = {
-                        Box(
-                            modifier = Modifier
-                                .size(16.dp)
-                                .clip(CircleShape)
-                                .background(Color(zone.colorArgb)),
-                        )
-                    },
-                    onClick = {
-                        onZoneSelected(zone.id)
-                        expanded = false
-                    },
+@Composable
+private fun ZoneMultiPicker(
+    selectedZoneIds: List<Long>,
+    zones: List<HrZone>,
+    onToggle: (Long) -> Unit,
+) {
+    Column {
+        Text("Zones", style = MaterialTheme.typography.labelMedium)
+        Spacer(Modifier.height(4.dp))
+        zones.forEach { zone ->
+            val selected = zone.id in selectedZoneIds
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onToggle(zone.id) }
+                    .padding(vertical = 2.dp),
+            ) {
+                Checkbox(
+                    checked = selected,
+                    onCheckedChange = { onToggle(zone.id) },
                 )
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(Color(zone.colorArgb)),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(zone.name, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }

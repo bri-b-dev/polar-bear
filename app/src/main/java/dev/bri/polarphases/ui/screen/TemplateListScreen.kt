@@ -14,16 +14,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -32,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.bri.polarphases.data.model.WorkoutTemplate
-import dev.bri.polarphases.viewmodel.RenameDialogState
 import dev.bri.polarphases.viewmodel.TemplateListViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,9 +37,9 @@ fun TemplateListScreen(
     viewModel: TemplateListViewModel,
     onBack: () -> Unit,
     onNewTemplate: () -> Unit,
+    onEditTemplate: (Long) -> Unit,
 ) {
     val templates by viewModel.templates.collectAsState()
-    val renameDialog by viewModel.renameDialog.collectAsState()
 
     Scaffold(
         topBar = {
@@ -85,28 +81,19 @@ fun TemplateListScreen(
                 items(templates, key = { it.id }) { template ->
                     TemplateRow(
                         template = template,
-                        onRename = { viewModel.openRenameDialog(template) },
+                        onEdit = { onEditTemplate(template.id) },
                         onDelete = { viewModel.deleteTemplate(template.id) },
                     )
                 }
             }
         }
     }
-
-    if (renameDialog != null) {
-        RenameDialog(
-            state = renameDialog!!,
-            onNameChange = viewModel::updateRenameName,
-            onDismiss = viewModel::dismissRenameDialog,
-            onConfirm = viewModel::confirmRename,
-        )
-    }
 }
 
 @Composable
 private fun TemplateRow(
     template: WorkoutTemplate,
-    onRename: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Row(
@@ -121,35 +108,11 @@ private fun TemplateRow(
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.weight(1f),
         )
-        IconButton(onClick = onRename) {
-            Icon(Icons.Default.Edit, contentDescription = "Rename")
+        IconButton(onClick = onEdit) {
+            Icon(Icons.Default.Edit, contentDescription = "Edit template")
         }
         IconButton(onClick = onDelete) {
-            Icon(Icons.Default.Delete, contentDescription = "Delete")
+            Icon(Icons.Default.Delete, contentDescription = "Delete template")
         }
     }
-}
-
-@Composable
-private fun RenameDialog(
-    state: RenameDialogState,
-    onNameChange: (String) -> Unit,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Rename Template") },
-        text = {
-            OutlinedTextField(
-                value = state.name,
-                onValueChange = onNameChange,
-                label = { Text("Name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("Rename") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
 }

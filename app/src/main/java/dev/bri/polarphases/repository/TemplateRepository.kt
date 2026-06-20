@@ -21,12 +21,15 @@ class TemplateRepository(private val dao: WorkoutTemplateDao) {
 
     suspend fun deleteTemplate(id: Long) = dao.deleteById(id)
 
+    suspend fun deleteAllSequenceItemsForTemplate(templateId: Long) =
+        dao.deleteAllSequenceItemsForTemplate(templateId)
+
     suspend fun addPhaseItem(
         templateId: Long,
         sortOrder: Int,
         name: String,
         durationSeconds: Int,
-        zoneId: Long,
+        zoneIds: List<Long>,
     ): Long = dao.insertSequenceItem(
         TemplateSequenceItem(
             templateId = templateId,
@@ -34,7 +37,7 @@ class TemplateRepository(private val dao: WorkoutTemplateDao) {
             itemType = ITEM_TYPE_PHASE,
             phaseName = name,
             durationSeconds = durationSeconds,
-            zoneId = zoneId,
+            zoneIds = zoneIds.joinToString(","),
         )
     )
 
@@ -56,14 +59,14 @@ class TemplateRepository(private val dao: WorkoutTemplateDao) {
         sortOrder: Int,
         name: String,
         durationSeconds: Int,
-        zoneId: Long,
+        zoneIds: List<Long>,
     ) = dao.insertBlockPhase(
         BlockPhase(
             sequenceItemId = sequenceItemId,
             sortOrder = sortOrder,
             phaseName = name,
             durationSeconds = durationSeconds,
-            zoneId = zoneId,
+            zoneIds = zoneIds.joinToString(","),
         )
     )
 
@@ -72,3 +75,7 @@ class TemplateRepository(private val dao: WorkoutTemplateDao) {
         const val ITEM_TYPE_BLOCK = "BLOCK"
     }
 }
+
+fun String.toZoneIdList(): List<Long> =
+    if (isBlank()) emptyList()
+    else split(",").mapNotNull { it.trim().toLongOrNull() }
