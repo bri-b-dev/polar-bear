@@ -35,6 +35,7 @@ class BleManager(private val context: Context) {
     private var gatt: BluetoothGatt? = null
     private val scannedDevices = mutableListOf<ScannedDevice>()
     private var connectedDeviceName = ""
+    private var intentionalDisconnect = false
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
@@ -73,9 +74,16 @@ class BleManager(private val context: Context) {
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> gatt.discoverServices()
                 BluetoothProfile.STATE_DISCONNECTED -> {
-                    _state.value = BleUiState.Idle
-                    gatt.close()
-                    this@BleManager.gatt = null
+                    if (intentionalDisconnect) {
+                        intentionalDisconnect = false
+                        _state.value = BleUiState.Idle
+                        gatt.close()
+                        this@BleManager.gatt = null
+                    } else {
+                        // Accidental drop — attempt background reconnect (N-6)
+                        _state.value = BleUiState.Reconnecting(connectedDeviceName)
+                        gatt.connect()
+                    }
                 }
             }
         }
@@ -179,6 +187,7 @@ class BleManager(private val context: Context) {
     }
 
     fun disconnect() {
+        intentionalDisconnect = true
         gatt?.disconnect()
     }
 

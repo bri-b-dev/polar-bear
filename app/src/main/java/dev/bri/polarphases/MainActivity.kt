@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -13,13 +14,14 @@ import androidx.navigation.navArgument
 import dev.bri.polarphases.ui.screen.HrMonitorScreen
 import dev.bri.polarphases.ui.screen.TemplateBuilderScreen
 import dev.bri.polarphases.ui.screen.TemplateListScreen
+import dev.bri.polarphases.ui.screen.WorkoutScreen
 import dev.bri.polarphases.ui.screen.ZoneManagementScreen
 import dev.bri.polarphases.ui.theme.PolarPhasesTheme
 import dev.bri.polarphases.viewmodel.BleViewModel
 import dev.bri.polarphases.viewmodel.TemplateBuilderViewModel
 import dev.bri.polarphases.viewmodel.TemplateListViewModel
+import dev.bri.polarphases.viewmodel.WorkoutExecutionViewModel
 import dev.bri.polarphases.viewmodel.ZoneViewModel
-import androidx.compose.runtime.LaunchedEffect
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,11 +30,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             PolarPhasesTheme {
                 val navController = rememberNavController()
+                // Activity-scoped so BLE connection persists across navigation (N-6)
+                val bleVm: BleViewModel = viewModel()
                 NavHost(navController = navController, startDestination = "hr_monitor") {
                     composable("hr_monitor") {
-                        val bleViewModel: BleViewModel = viewModel()
                         HrMonitorScreen(
-                            viewModel = bleViewModel,
+                            viewModel = bleVm,
                             onNavigateToZones = { navController.navigate("zones") },
                             onNavigateToTemplates = { navController.navigate("templates") },
                         )
@@ -51,6 +54,7 @@ class MainActivity : ComponentActivity() {
                             onBack = { navController.popBackStack() },
                             onNewTemplate = { navController.navigate("template_builder/0") },
                             onEditTemplate = { id -> navController.navigate("template_builder/$id") },
+                            onStartWorkout = { id -> navController.navigate("workout/$id") },
                         )
                     }
                     composable(
@@ -70,6 +74,26 @@ class MainActivity : ComponentActivity() {
                         TemplateBuilderScreen(
                             viewModel = templateBuilderViewModel,
                             onBack = { navController.popBackStack() },
+                        )
+                    }
+                    composable(
+                        route = "workout/{templateId}",
+                        arguments = listOf(
+                            navArgument("templateId") {
+                                type = NavType.LongType
+                                defaultValue = 0L
+                            }
+                        ),
+                    ) { backStackEntry ->
+                        val templateId = backStackEntry.arguments?.getLong("templateId") ?: 0L
+                        val workoutVm: WorkoutExecutionViewModel = viewModel()
+                        LaunchedEffect(templateId) {
+                            workoutVm.loadAndStart(templateId)
+                        }
+                        WorkoutScreen(
+                            viewModel = workoutVm,
+                            bleVm = bleVm,
+                            onEnd = { navController.popBackStack() },
                         )
                     }
                 }

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -38,6 +39,7 @@ fun TemplateListScreen(
     onBack: () -> Unit,
     onNewTemplate: () -> Unit,
     onEditTemplate: (Long) -> Unit,
+    onStartWorkout: (Long) -> Unit,
 ) {
     val templates by viewModel.templates.collectAsState()
 
@@ -81,6 +83,7 @@ fun TemplateListScreen(
                 items(templates, key = { it.id }) { template ->
                     TemplateRow(
                         template = template,
+                        onStart = { onStartWorkout(template.id) },
                         onEdit = { onEditTemplate(template.id) },
                         onDelete = { viewModel.deleteTemplate(template.id) },
                     )
@@ -93,6 +96,7 @@ fun TemplateListScreen(
 @Composable
 private fun TemplateRow(
     template: WorkoutTemplate,
+    onStart: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -108,6 +112,9 @@ private fun TemplateRow(
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.weight(1f),
         )
+        IconButton(onClick = onStart) {
+            Icon(Icons.Default.PlayArrow, contentDescription = "Start workout")
+        }
         IconButton(onClick = onEdit) {
             Icon(Icons.Default.Edit, contentDescription = "Edit template")
         }

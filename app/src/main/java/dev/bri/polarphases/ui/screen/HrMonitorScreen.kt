@@ -143,6 +143,7 @@ private fun BleContent(
             onConnect = onConnect,
         )
         is BleUiState.Connecting -> ConnectingContent(deviceName = state.deviceName)
+        is BleUiState.Reconnecting -> ConnectingContent(deviceName = state.deviceName)
         is BleUiState.Connected -> ConnectedContent(
             deviceName = state.deviceName,
             bpm = state.bpm,

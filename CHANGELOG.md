@@ -16,6 +16,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (Placeholder for fixes)
 
+## [0.4.0] - 2026-06-20
+
+### Added
+- Workout execution screen: start a workout from any saved template via the Play button on the template list (F-4.1)
+- Live display of current BPM (large font), current phase name, and MM:SS countdown timer (F-4.2)
+- Repeat-block display shows "Repetition X of Y" during block phases (F-4.2a)
+- Phases auto-advance when their countdown reaches zero (F-4.3)
+- Vibration (350 ms) + audible tone on every phase transition (F-4.4)
+- Zone compliance indicator: BPM colored green (in zone), red (too high), or orange (too low) with a directional text badge (F-4.5)
+- Pause / Resume button during active workout (F-4.6)
+- Screen stays on for the entire active workout via `FLAG_KEEP_SCREEN_ON` (F-4.8)
+- BLE reconnect resilience: accidental strap drop keeps workout timer running on last-known BPM; GATT reconnects automatically and resumes live readings (N-6)
+- Readable at 1–2 m: BPM at 80 sp, timer at 64 sp, high-contrast compliance colors (N-4)
+
+### Changed
+- `BleViewModel` is now Activity-scoped so the BLE connection persists when navigating from the monitor screen into a workout
+- `BleUiState` gains a `Reconnecting` state to distinguish accidental drops from intentional disconnects
+
 ## [0.3.1] - 2026-06-20
 
 ### Added
