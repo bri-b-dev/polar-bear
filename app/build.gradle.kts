@@ -13,8 +13,8 @@ android {
         applicationId = "dev.bri.polarphases"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.2"
+        versionCode = 4
+        versionName = "0.3.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -28,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -46,7 +47,11 @@ import dev.bri.polarphases.viewmodel.BleViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
-fun HrMonitorScreen(viewModel: BleViewModel, onNavigateToZones: () -> Unit = {}) {
+fun HrMonitorScreen(
+    viewModel: BleViewModel,
+    onNavigateToZones: () -> Unit = {},
+    onNavigateToTemplates: () -> Unit = {},
+) {
     val state by viewModel.state.collectAsState()
 
     val blePermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -65,6 +70,7 @@ fun HrMonitorScreen(viewModel: BleViewModel, onNavigateToZones: () -> Unit = {})
             TopAppBar(
                 title = { Text("Polar Phases") },
                 actions = {
+                    TextButton(onClick = onNavigateToTemplates) { Text("Templates") }
                     IconButton(onClick = onNavigateToZones) {
                         Icon(Icons.Default.Settings, contentDescription = "HR Zones")
                     }
