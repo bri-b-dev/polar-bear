@@ -16,6 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (Placeholder for fixes)
 
+## [0.2.0] - 2026-06-20
+
+### Added
+- HR Zone management screen with full CRUD operations (create, edit, delete zones)
+- Karvonen formula calculator for automated zone seed generation
+- Room database persistence layer with HrZone entity and DAO
+- Zone repository pattern for data access abstraction
+- ZoneViewModel for state management of zone operations and dialogs
+- Zone form validation with name, BPM range (min/max), and color picker
+- 10-color palette for zone customization and visual distinction
+- App-level dependency injection scaffolding with PolarPhasesApp class
+
+### Changed
+- App structure refactored to support multi-screen navigation with MainActivity routes
+- Updated Gradle build configuration to support Room database and data persistence
+
 ## [0.1.0] - 2026-06-20
 
 ### Added
