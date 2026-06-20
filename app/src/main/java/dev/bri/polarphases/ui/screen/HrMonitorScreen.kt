@@ -14,10 +14,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -42,7 +46,7 @@ import dev.bri.polarphases.viewmodel.BleViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
-fun HrMonitorScreen(viewModel: BleViewModel) {
+fun HrMonitorScreen(viewModel: BleViewModel, onNavigateToZones: () -> Unit = {}) {
     val state by viewModel.state.collectAsState()
 
     val blePermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -57,7 +61,16 @@ fun HrMonitorScreen(viewModel: BleViewModel) {
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Polar Phases — BLE Spike") }) }
+        topBar = {
+            TopAppBar(
+                title = { Text("Polar Phases") },
+                actions = {
+                    IconButton(onClick = onNavigateToZones) {
+                        Icon(Icons.Default.Settings, contentDescription = "HR Zones")
+                    }
+                },
+            )
+        },
     ) { padding ->
         Box(
             modifier = Modifier
