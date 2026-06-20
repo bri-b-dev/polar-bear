@@ -58,13 +58,15 @@ jobs:
               exit 1
             fi
           done
+          # Keystore dekodieren
+          echo "$S_B64" | base64 --decode > android-release.jks
           {
-            echo "ANDROID_KEYSTORE_BASE64=${S_B64}"
+            echo "KEYSTORE_FILE=$(pwd)/android-release.jks"
             echo "ANDROID_KEYSTORE_PASSWORD=${S_SP}"
             echo "ANDROID_KEY_ALIAS=${S_ALIAS}"
             echo "ANDROID_KEY_PASSWORD=${S_KP}"
           } >> "$GITHUB_ENV"
-          echo "ANDROID_KEYSTORE_BASE64 length: ${#S_B64}"
+          echo "✓ Keystore decoded to $(pwd)/android-release.jks"
 
       - name: Build signed AAB & APK (Gradle)
         run: |
