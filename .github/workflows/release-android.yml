@@ -31,6 +31,17 @@ jobs:
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses
 
+      - name: Debug available secrets
+        run: |
+          echo "Available secrets:"
+          env | grep -i android || echo "No ANDROID_* secrets found"
+          echo "---"
+          echo "Checking specific secrets:"
+          [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ] && echo "✓ ANDROID_KEYSTORE_BASE64 is set" || echo "✗ ANDROID_KEYSTORE_BASE64 is empty/missing"
+          [ -n "${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" ] && echo "✓ ANDROID_KEYSTORE_PASSWORD is set" || echo "✗ ANDROID_KEYSTORE_PASSWORD is empty/missing"
+          [ -n "${{ secrets.ANDROID_KEY_ALIAS }}" ] && echo "✓ ANDROID_KEY_ALIAS is set" || echo "✗ ANDROID_KEY_ALIAS is empty/missing"
+          [ -n "${{ secrets.ANDROID_KEY_PASSWORD }}" ] && echo "✓ ANDROID_KEY_PASSWORD is set" || echo "✗ ANDROID_KEY_PASSWORD is empty/missing"
+
       - name: Preflight signing secrets
         shell: bash
         env:
