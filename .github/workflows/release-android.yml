@@ -11,6 +11,7 @@ permissions:
 jobs:
   build-release:
     runs-on: ubuntu-latest
+    environment: Android
     env:
       JAVA_VERSION: "21"
 
