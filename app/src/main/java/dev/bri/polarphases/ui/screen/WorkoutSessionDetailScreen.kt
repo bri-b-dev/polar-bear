@@ -77,72 +77,78 @@ fun WorkoutSessionDetailScreen(
             ) {
                 CircularProgressIndicator()
             }
-            return@Scaffold
+        } else {
+            SessionDetailContent(details = details!!, modifier = Modifier.padding(padding))
+        }
+    }
+}
+
+@Composable
+private fun SessionDetailContent(
+    details: WorkoutSessionWithDetails,
+    modifier: Modifier = Modifier,
+) {
+    val durationMs = details.session.endedAt - details.session.startedAt
+    val blockSummaries = remember(details.phaseRecords) { computeBlockSummaries(details.phaseRecords) }
+    val earlyExitBlocks = remember(blockSummaries) {
+        blockSummaries.values.filter { it.repsCompleted < it.totalRepsPlanned }
+    }
+
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = formatDetailDate(details.session.startedAt),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = buildString {
+                    append(formatSessionDuration(durationMs))
+                    append(" · ")
+                    append("${details.session.totalPhasesCompleted} of ${details.session.totalPhasesPlanned} phases completed")
+                    if (details.session.endReason == "EARLY_EXIT") append(" (early exit)")
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
-        val d = details!!
-        val durationMs = d.session.endedAt - d.session.startedAt
+        item {
+            HorizontalDivider()
+            Spacer(Modifier.height(4.dp))
+            HrChart(
+                hrSamples = details.hrSamples,
+                zoneSnapshots = details.zoneSnapshots,
+                sessionDurationMs = durationMs,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp),
+            )
+        }
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
+        if (details.zoneSnapshots.isNotEmpty()) {
             item {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = formatDetailDate(d.session.startedAt),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = buildString {
-                        append(formatSessionDuration(durationMs))
-                        append(" · ")
-                        append("${d.session.totalPhasesCompleted} of ${d.session.totalPhasesPlanned} phases completed")
-                        if (d.session.endReason == "EARLY_EXIT") append(" (early exit)")
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                ZoneLegend(details.zoneSnapshots)
             }
+        }
 
+        if (earlyExitBlocks.isNotEmpty()) {
             item {
                 HorizontalDivider()
                 Spacer(Modifier.height(4.dp))
-                HrChart(
-                    hrSamples = d.hrSamples,
-                    zoneSnapshots = d.zoneSnapshots,
-                    sessionDurationMs = durationMs,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp),
+                Text(
+                    text = "Block Notes",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
                 )
-            }
-
-            if (d.zoneSnapshots.isNotEmpty()) {
-                item {
-                    ZoneLegend(d.zoneSnapshots)
-                }
-            }
-
-            val blockSummaries = remember(d.phaseRecords) {
-                computeBlockSummaries(d.phaseRecords)
-            }
-            val earlyExitBlocks = blockSummaries.values.filter { it.repsCompleted < it.totalRepsPlanned }
-
-            if (earlyExitBlocks.isNotEmpty()) {
-                item {
-                    HorizontalDivider()
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "Block Notes",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(8.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     earlyExitBlocks.forEach { summary ->
                         Text(
                             text = "${summary.repsCompleted} of ${summary.totalRepsPlanned} repetitions completed",
@@ -152,9 +158,9 @@ fun WorkoutSessionDetailScreen(
                     }
                 }
             }
-
-            item { Spacer(Modifier.height(16.dp)) }
         }
+
+        item { Spacer(Modifier.height(16.dp)) }
     }
 }
 
@@ -201,7 +207,6 @@ private fun HrChart(
         fun msToX(ms: Long): Float =
             (ms.toFloat() / xMax) * w
 
-        // Zone background bands
         sortedZones.forEach { zone ->
             val yTop = bpmToY(zone.bpmMax).coerceIn(0f, h)
             val yBottom = bpmToY(zone.bpmMin).coerceIn(0f, h)
@@ -214,7 +219,6 @@ private fun HrChart(
             }
         }
 
-        // HR line
         if (sortedSamples.size >= 2) {
             val path = Path()
             sortedSamples.forEachIndexed { idx, sample ->
