@@ -33,6 +33,30 @@ data class ExecutionPhase(
     val blockId: Long? = null,
 )
 
+sealed class PlanGroup {
+    abstract val firstIndex: Int
+    abstract val lastIndex: Int
+
+    data class StandalonePhase(
+        override val firstIndex: Int,
+        val name: String,
+        val durationSeconds: Int,
+        val targetZones: List<HrZone>,
+    ) : PlanGroup() {
+        override val lastIndex: Int = firstIndex
+    }
+
+    data class BlockGroup(
+        override val firstIndex: Int,
+        override val lastIndex: Int,
+        val blockId: Long,
+        val totalReps: Int,
+        val phaseNames: List<String>,
+        val phaseDurations: List<Int>,
+        val phaseZones: List<List<HrZone>>,
+    ) : PlanGroup()
+}
+
 enum class ZoneCompliance { IN_ZONE, TOO_HIGH, TOO_LOW, UNKNOWN }
 
 sealed class WorkoutState {
@@ -40,6 +64,8 @@ sealed class WorkoutState {
     data class Active(
         val templateName: String,
         val plan: List<ExecutionPhase>,
+        val planGroups: List<PlanGroup>,
+        val totalDurationSeconds: Int,
         val currentIndex: Int,
         val remainingSeconds: Int,
         val currentBpm: Int?,
@@ -53,6 +79,14 @@ sealed class WorkoutState {
     ) : WorkoutState() {
         val current: ExecutionPhase get() = plan[currentIndex]
         val totalPhases: Int get() = plan.size
+        val elapsedSeconds: Int get() {
+            val done = plan.take(currentIndex).sumOf { it.durationSeconds }
+            return done + maxOf(0, plan[currentIndex].durationSeconds - remainingSeconds)
+        }
+        val overallProgress: Float get() =
+            if (totalDurationSeconds > 0)
+                (elapsedSeconds.toFloat() / totalDurationSeconds).coerceIn(0f, 1f)
+            else 0f
     }
     data object Finished : WorkoutState()
 }
@@ -78,6 +112,8 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
             _state.value = WorkoutState.Active(
                 templateName = withItems.template.name,
                 plan = plan,
+                planGroups = buildPlanGroups(plan),
+                totalDurationSeconds = plan.sumOf { it.durationSeconds },
                 currentIndex = 0,
                 remainingSeconds = plan[0].durationSeconds,
                 currentBpm = null,
@@ -280,4 +316,39 @@ private fun buildExecutionPlan(
         }
     }
     return result
+}
+
+private fun buildPlanGroups(plan: List<ExecutionPhase>): List<PlanGroup> {
+    val groups = mutableListOf<PlanGroup>()
+    var i = 0
+    while (i < plan.size) {
+        val phase = plan[i]
+        if (phase.blockId == null) {
+            groups += PlanGroup.StandalonePhase(
+                firstIndex = i,
+                name = phase.name,
+                durationSeconds = phase.durationSeconds,
+                targetZones = phase.targetZones,
+            )
+            i++
+        } else {
+            val blockId = phase.blockId
+            val blockStart = i
+            while (i < plan.size && plan[i].blockId == blockId) i++
+            val blockEnd = i - 1
+            val totalReps = phase.blockTotalReps ?: 1
+            val phaseCountPerRep = (blockEnd - blockStart + 1) / totalReps
+            val firstRepPhases = plan.subList(blockStart, blockStart + phaseCountPerRep)
+            groups += PlanGroup.BlockGroup(
+                firstIndex = blockStart,
+                lastIndex = blockEnd,
+                blockId = blockId,
+                totalReps = totalReps,
+                phaseNames = firstRepPhases.map { it.name },
+                phaseDurations = firstRepPhases.map { it.durationSeconds },
+                phaseZones = firstRepPhases.map { it.targetZones },
+            )
+        }
+    }
+    return groups
 }

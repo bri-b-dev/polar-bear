@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (Placeholder for fixes)
 
+## [0.6.0] - 2026-06-21
+
+### Added
+- Workout overview sheet: tap "Overview" in the top bar at any time during a workout to see your position in the full plan (F-4.9)
+- Overall time-based progress bar in the overview showing elapsed vs. total planned duration, independent of phase/block structure (F-4.9a)
+- Chronological phase list in the overview with status indicators — ▶ active, ✓ done, ○ pending — and zone color dots (F-4.9b, F-4.9c)
+- Repeat blocks appear as a single consolidated row showing current rep progress; tap the row to expand and see the individual phases within the block (F-4.9d)
+- Opening and closing the overview never affects the workout timer or phase countdown (F-4.9e)
+- Phase list uses LazyColumn for smooth scrolling on long templates (N-7)
+
 ## [0.5.0] - 2026-06-21
 
 ### Added
