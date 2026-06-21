@@ -38,11 +38,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.bri.polarphases.data.model.HrZone
-import dev.bri.polarphases.viewmodel.BleStatus
 import dev.bri.polarphases.viewmodel.BleViewModel
+import dev.bri.polarphases.viewmodel.ExecutionPhase
 import dev.bri.polarphases.viewmodel.WorkoutExecutionViewModel
 import dev.bri.polarphases.viewmodel.WorkoutState
 import dev.bri.polarphases.viewmodel.ZoneCompliance
+
+private val COLOR_TOO_HIGH = Color(0xFFF44336)
+private val COLOR_TOO_LOW = Color(0xFFFF9800)
+private val COLOR_NO_READING = Color(0xFF9E9E9E)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,15 +104,9 @@ fun WorkoutScreen(
                         .padding(padding),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    BpmSection(
-                        modifier = Modifier.weight(0.35f),
-                        state = state,
-                    )
+                    BpmSection(modifier = Modifier.weight(0.35f), state = state)
                     HorizontalDivider()
-                    PhaseSection(
-                        modifier = Modifier.weight(0.45f),
-                        state = state,
-                    )
+                    PhaseSection(modifier = Modifier.weight(0.45f), state = state)
                     HorizontalDivider()
                     ControlsSection(
                         modifier = Modifier.weight(0.20f),
@@ -120,7 +118,6 @@ fun WorkoutScreen(
             }
         }
         is WorkoutState.Finished -> {
-            // LaunchedEffect above handles navigation; show nothing to avoid flicker
             Box(Modifier.fillMaxSize())
         }
     }
@@ -128,58 +125,34 @@ fun WorkoutScreen(
 
 @Composable
 private fun BpmSection(modifier: Modifier, state: WorkoutState.Active) {
-    val complianceColor = complianceColor(state.zoneCompliance)
-    val (displayBpm, isApproximate) = when {
-        state.currentBpm != null -> Pair(state.currentBpm.toString(), false)
-        state.lastKnownBpm != null -> Pair(state.lastKnownBpm.toString(), true)
-        else -> Pair("--", false)
-    }
+    val bpmColor = currentZoneColor(state.currentBpm, state.allZones)
+    val showWarning = state.enteredTargetZone &&
+        (state.zoneCompliance == ZoneCompliance.TOO_HIGH || state.zoneCompliance == ZoneCompliance.TOO_LOW)
 
     Column(
         modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (isApproximate) {
-                Text("~", fontSize = 40.sp, color = Color(0xFF9E9E9E), fontWeight = FontWeight.Light)
-            }
-            Text(
-                text = displayBpm,
-                fontSize = 80.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isApproximate) Color(0xFF9E9E9E) else complianceColor,
-            )
-        }
         Text(
-            text = when {
-                state.bleStatus == BleStatus.RECONNECTING -> "bpm  (reconnecting…)"
-                state.bleStatus == BleStatus.DISCONNECTED && state.lastKnownBpm == null -> "no strap connected"
-                else -> "bpm"
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (isApproximate) Color(0xFF9E9E9E) else complianceColor,
+            text = state.currentBpm?.toString() ?: "--",
+            fontSize = 80.sp,
+            fontWeight = FontWeight.Bold,
+            color = bpmColor,
         )
-        when (state.zoneCompliance) {
-            ZoneCompliance.TOO_HIGH -> {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "▲ Too high",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = complianceColor,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-            ZoneCompliance.TOO_LOW -> {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "▼ Too low",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = complianceColor,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-            else -> {}
+        Text(
+            text = "bpm",
+            style = MaterialTheme.typography.bodyMedium,
+            color = bpmColor,
+        )
+        if (showWarning) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = if (state.zoneCompliance == ZoneCompliance.TOO_HIGH) "▲ Too high" else "▼ Too low",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (state.zoneCompliance == ZoneCompliance.TOO_HIGH) COLOR_TOO_HIGH else COLOR_TOO_LOW,
+            )
         }
     }
 }
@@ -187,6 +160,8 @@ private fun BpmSection(modifier: Modifier, state: WorkoutState.Active) {
 @Composable
 private fun PhaseSection(modifier: Modifier, state: WorkoutState.Active) {
     val phase = state.current
+    val phaseColor = targetZoneColor(phase) ?: MaterialTheme.colorScheme.onSurface
+
     Column(
         modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -196,6 +171,7 @@ private fun PhaseSection(modifier: Modifier, state: WorkoutState.Active) {
             text = phase.name,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.SemiBold,
+            color = phaseColor,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -204,6 +180,7 @@ private fun PhaseSection(modifier: Modifier, state: WorkoutState.Active) {
             text = formatTime(state.remainingSeconds),
             fontSize = 64.sp,
             fontWeight = FontWeight.Bold,
+            color = phaseColor,
         )
         if (phase.blockRepIndex != null && phase.blockTotalReps != null) {
             Spacer(Modifier.height(8.dp))
@@ -277,12 +254,15 @@ private fun ZoneChipsRow(zones: List<HrZone>) {
     }
 }
 
-private fun complianceColor(compliance: ZoneCompliance): Color = when (compliance) {
-    ZoneCompliance.IN_ZONE -> Color(0xFF4CAF50)
-    ZoneCompliance.TOO_HIGH -> Color(0xFFF44336)
-    ZoneCompliance.TOO_LOW -> Color(0xFFFF9800)
-    ZoneCompliance.UNKNOWN -> Color(0xFF9E9E9E)
+private fun currentZoneColor(bpm: Int?, allZones: List<HrZone>): Color {
+    if (bpm == null) return COLOR_NO_READING
+    return allZones.firstOrNull { bpm in it.bpmMin..it.bpmMax }
+        ?.let { Color(it.colorArgb) }
+        ?: COLOR_NO_READING
 }
+
+private fun targetZoneColor(phase: ExecutionPhase): Color? =
+    phase.targetZones.firstOrNull()?.let { Color(it.colorArgb) }
 
 private fun formatTime(totalSeconds: Int): String {
     val m = totalSeconds / 60

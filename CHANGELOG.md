@@ -16,7 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (Placeholder for fixes)
 
-## [0.4.0] - 2026-06-20
+## [0.4.1] - 2026-06-21
+
+### Changed
+- BPM number colored by the zone the current HR falls into (from all defined zones), not by a fixed compliance color
+- Phase name and countdown timer colored by the target zone of the current phase
+- Out-of-zone signal (double vibration + beep) fires only once when the user leaves the target zone, and only if they were inside it first; starting a phase already outside the target zone does not signal
+- No live HR reading shows "--" instead of the last measured value; stale BPM is never displayed
+
+## [0.4.0] - 2026-06-21
 
 ### Added
 - Workout execution screen: start a workout from any saved template via the Play button on the template list (F-4.1)

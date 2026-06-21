@@ -34,8 +34,6 @@ data class ExecutionPhase(
 
 enum class ZoneCompliance { IN_ZONE, TOO_HIGH, TOO_LOW, UNKNOWN }
 
-enum class BleStatus { CONNECTED, RECONNECTING, DISCONNECTED }
-
 sealed class WorkoutState {
     data object NotStarted : WorkoutState()
     data class Active(
@@ -44,9 +42,12 @@ sealed class WorkoutState {
         val currentIndex: Int,
         val remainingSeconds: Int,
         val currentBpm: Int?,
-        val lastKnownBpm: Int?,
-        val bleStatus: BleStatus,
+        val allZones: List<HrZone>,
         val zoneCompliance: ZoneCompliance,
+        // true once the user has been inside the target zone during this phase
+        val enteredTargetZone: Boolean,
+        // prevents re-signaling every second after leaving the zone
+        val outOfZoneSignalFired: Boolean,
         val isPaused: Boolean,
     ) : WorkoutState() {
         val current: ExecutionPhase get() = plan[currentIndex]
@@ -65,12 +66,12 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
     val state: StateFlow<WorkoutState> = _state.asStateFlow()
 
     private var timerJob: Job? = null
-    private var lastKnownBpm: Int? = null
 
     fun loadAndStart(templateId: Long) {
         viewModelScope.launch {
             val withItems = templateRepo.observeWithItems(templateId).first() ?: return@launch
-            val zoneMap = zoneRepo.observeZones().first().associateBy { it.id }
+            val allZones = zoneRepo.observeZones().first()
+            val zoneMap = allZones.associateBy { it.id }
             val plan = buildExecutionPlan(withItems, zoneMap)
             if (plan.isEmpty()) return@launch
             _state.value = WorkoutState.Active(
@@ -79,9 +80,10 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
                 currentIndex = 0,
                 remainingSeconds = plan[0].durationSeconds,
                 currentBpm = null,
-                lastKnownBpm = lastKnownBpm,
-                bleStatus = BleStatus.DISCONNECTED,
+                allZones = allZones,
                 zoneCompliance = ZoneCompliance.UNKNOWN,
+                enteredTargetZone = false,
+                outOfZoneSignalFired = false,
                 isPaused = false,
             )
             startTimer()
@@ -90,30 +92,34 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
 
     fun onBleStateChange(bleState: BleUiState) {
         val active = _state.value as? WorkoutState.Active ?: return
-        when (bleState) {
-            is BleUiState.Connected -> {
-                val bpm = bleState.bpm
-                if (bpm != null) lastKnownBpm = bpm
-                _state.value = active.copy(
-                    currentBpm = bpm,
-                    lastKnownBpm = lastKnownBpm,
-                    bleStatus = BleStatus.CONNECTED,
-                    zoneCompliance = checkZoneCompliance(lastKnownBpm, active.current.targetZones),
-                )
+        val bpm = (bleState as? BleUiState.Connected)?.bpm
+        if (bpm == null) {
+            // No live reading — show "--", suspend zone compliance
+            _state.value = active.copy(
+                currentBpm = null,
+                zoneCompliance = ZoneCompliance.UNKNOWN,
+            )
+            return
+        }
+        val compliance = checkZoneCompliance(bpm, active.current.targetZones)
+        var enteredTargetZone = active.enteredTargetZone
+        var outOfZoneSignalFired = active.outOfZoneSignalFired
+        when {
+            compliance == ZoneCompliance.IN_ZONE -> {
+                enteredTargetZone = true
+                outOfZoneSignalFired = false  // reset so leaving again will signal again
             }
-            is BleUiState.Reconnecting -> {
-                _state.value = active.copy(
-                    currentBpm = null,
-                    bleStatus = BleStatus.RECONNECTING,
-                )
-            }
-            else -> {
-                _state.value = active.copy(
-                    currentBpm = null,
-                    bleStatus = BleStatus.DISCONNECTED,
-                )
+            enteredTargetZone && !outOfZoneSignalFired -> {
+                triggerOutOfZoneFeedback()
+                outOfZoneSignalFired = true
             }
         }
+        _state.value = active.copy(
+            currentBpm = bpm,
+            zoneCompliance = compliance,
+            enteredTargetZone = enteredTargetZone,
+            outOfZoneSignalFired = outOfZoneSignalFired,
+        )
     }
 
     fun pause() {
@@ -159,7 +165,9 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
             _state.value = current.copy(
                 currentIndex = nextIndex,
                 remainingSeconds = nextPhase.durationSeconds,
-                zoneCompliance = checkZoneCompliance(lastKnownBpm, nextPhase.targetZones),
+                zoneCompliance = checkZoneCompliance(current.currentBpm, nextPhase.targetZones),
+                enteredTargetZone = false,
+                outOfZoneSignalFired = false,
             )
         }
     }
@@ -172,6 +180,25 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
     }
 
     private fun triggerTransitionFeedback() {
+        vibrate(longArrayOf(0, 350))
+        try {
+            val toneGen = ToneGenerator(AudioManager.STREAM_ALARM, 80)
+            toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300)
+            Handler(Looper.getMainLooper()).postDelayed({ toneGen.release() }, 600)
+        } catch (_: Exception) { }
+    }
+
+    private fun triggerOutOfZoneFeedback() {
+        // Short double-pulse, distinct from the phase-transition single pulse
+        vibrate(longArrayOf(0, 150, 100, 150))
+        try {
+            val toneGen = ToneGenerator(AudioManager.STREAM_ALARM, 70)
+            toneGen.startTone(ToneGenerator.TONE_PROP_BEEP2, 200)
+            Handler(Looper.getMainLooper()).postDelayed({ toneGen.release() }, 400)
+        } catch (_: Exception) { }
+    }
+
+    private fun vibrate(pattern: LongArray) {
         val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             getApplication<Application>()
                 .getSystemService(VibratorManager::class.java)?.defaultVibrator
@@ -180,16 +207,11 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
             getApplication<Application>().getSystemService(Vibrator::class.java)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator?.vibrate(VibrationEffect.createOneShot(350, VibrationEffect.DEFAULT_AMPLITUDE))
+            vibrator?.vibrate(VibrationEffect.createWaveform(pattern, -1))
         } else {
             @Suppress("DEPRECATION")
-            vibrator?.vibrate(350)
+            vibrator?.vibrate(pattern, -1)
         }
-        try {
-            val toneGen = ToneGenerator(AudioManager.STREAM_ALARM, 80)
-            toneGen.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 300)
-            Handler(Looper.getMainLooper()).postDelayed({ toneGen.release() }, 600)
-        } catch (_: Exception) { }
     }
 
     override fun onCleared() {
