@@ -30,6 +30,7 @@ data class ExecutionPhase(
     val targetZones: List<HrZone>,
     val blockRepIndex: Int?,
     val blockTotalReps: Int?,
+    val blockId: Long? = null,
 )
 
 enum class ZoneCompliance { IN_ZONE, TOO_HIGH, TOO_LOW, UNKNOWN }
@@ -136,6 +137,32 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
         timerJob?.cancel()
         timerJob = null
         _state.value = WorkoutState.Finished
+    }
+
+    fun skipPhase() {
+        val active = _state.value as? WorkoutState.Active ?: return
+        advancePhase(active)
+    }
+
+    fun exitBlock() {
+        val active = _state.value as? WorkoutState.Active ?: return
+        val currentBlockId = active.current.blockId ?: return
+        val exitIndex = (active.currentIndex + 1 until active.plan.size)
+            .firstOrNull { active.plan[it].blockId != currentBlockId }
+        triggerTransitionFeedback()
+        if (exitIndex == null) {
+            timerJob?.cancel()
+            _state.value = WorkoutState.Finished
+        } else {
+            val nextPhase = active.plan[exitIndex]
+            _state.value = active.copy(
+                currentIndex = exitIndex,
+                remainingSeconds = nextPhase.durationSeconds,
+                zoneCompliance = checkZoneCompliance(active.currentBpm, nextPhase.targetZones),
+                enteredTargetZone = false,
+                outOfZoneSignalFired = false,
+            )
+        }
     }
 
     private fun startTimer() {
@@ -246,6 +273,7 @@ private fun buildExecutionPlan(
                         targetZones = phase.zoneIds.toZoneIdList().mapNotNull { zoneMap[it] },
                         blockRepIndex = repIdx + 1,
                         blockTotalReps = repCount,
+                        blockId = item.id,
                     )
                 }
             }

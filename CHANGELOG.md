@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (Placeholder for fixes)
 
+## [0.5.0] - 2026-06-21
+
+### Added
+- Skip phase button: manually advance to the next phase at any time during a workout, including skipping to the next repetition inside a repeat block (F-4.7)
+- Exit block button: when inside a repeat block, jump directly to the phase after the entire block, skipping all remaining repetitions (F-4.7a)
+- Both Skip and Exit Block controls are shown simultaneously while inside a block and are distinct, clearly labelled actions
+
 ## [0.4.1] - 2026-06-21
 
 ### Changed

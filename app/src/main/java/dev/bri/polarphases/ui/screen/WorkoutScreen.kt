@@ -20,6 +20,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -104,15 +105,17 @@ fun WorkoutScreen(
                         .padding(padding),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    BpmSection(modifier = Modifier.weight(0.35f), state = state)
+                    BpmSection(modifier = Modifier.weight(0.30f), state = state)
                     HorizontalDivider()
-                    PhaseSection(modifier = Modifier.weight(0.45f), state = state)
+                    PhaseSection(modifier = Modifier.weight(0.42f), state = state)
                     HorizontalDivider()
                     ControlsSection(
-                        modifier = Modifier.weight(0.20f),
+                        modifier = Modifier.weight(0.28f),
                         state = state,
                         onPause = viewModel::pause,
                         onResume = viewModel::resume,
+                        onSkip = viewModel::skipPhase,
+                        onExitBlock = viewModel::exitBlock,
                     )
                 }
             }
@@ -203,7 +206,10 @@ private fun ControlsSection(
     state: WorkoutState.Active,
     onPause: () -> Unit,
     onResume: () -> Unit,
+    onSkip: () -> Unit,
+    onExitBlock: () -> Unit,
 ) {
+    val isInBlock = state.current.blockId != null
     Column(
         modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -219,15 +225,35 @@ private fun ControlsSection(
             progress = { (state.currentIndex + 1).toFloat() / state.totalPhases },
             modifier = Modifier.fillMaxWidth(),
         )
-        Spacer(Modifier.height(12.dp))
-        Button(
-            onClick = if (state.isPaused) onResume else onPause,
+        Spacer(Modifier.height(8.dp))
+        Row(
             modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                text = if (state.isPaused) "▶  Resume" else "⏸  Pause",
-                fontSize = 18.sp,
-            )
+            Button(
+                onClick = if (state.isPaused) onResume else onPause,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = if (state.isPaused) "▶ Resume" else "⏸ Pause",
+                    fontSize = 16.sp,
+                )
+            }
+            Button(
+                onClick = onSkip,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text("⏭ Skip", fontSize = 16.sp)
+            }
+        }
+        if (isInBlock) {
+            Spacer(Modifier.height(6.dp))
+            OutlinedButton(
+                onClick = onExitBlock,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Exit Block", fontSize = 16.sp)
+            }
         }
     }
 }
