@@ -13,9 +13,14 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.bri.polarphases.PolarPhasesApp
 import dev.bri.polarphases.ble.BleUiState
+import dev.bri.polarphases.data.model.HrSample
 import dev.bri.polarphases.data.model.HrZone
+import dev.bri.polarphases.data.model.SessionPhaseRecord
+import dev.bri.polarphases.data.model.WorkoutSession
 import dev.bri.polarphases.data.model.WorkoutTemplateWithItems
+import dev.bri.polarphases.data.model.ZoneSnapshot
 import dev.bri.polarphases.repository.toZoneIdList
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +28,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class ExecutionPhase(
     val name: String,
@@ -96,11 +102,22 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
     private val app = application as PolarPhasesApp
     private val templateRepo = app.templateRepository
     private val zoneRepo = app.zoneRepository
+    private val sessionRepo = app.sessionRepository
 
     private val _state = MutableStateFlow<WorkoutState>(WorkoutState.NotStarted)
     val state: StateFlow<WorkoutState> = _state.asStateFlow()
 
     private var timerJob: Job? = null
+
+    // Session recording state — reset on each loadAndStart
+    private var sessionStartMs = 0L
+    private var phaseStartMs = 0L
+    private var lastHrSampleMs = 0L
+    private var isSaving = false
+    private val recordedHrSamples = mutableListOf<HrSample>()
+    private val recordedPhaseRecords = mutableListOf<SessionPhaseRecord>()
+    private var phaseRecordSortOrder = 0
+    private var capturedZones: List<HrZone> = emptyList()
 
     fun loadAndStart(templateId: Long) {
         viewModelScope.launch {
@@ -109,6 +126,18 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
             val zoneMap = allZones.associateBy { it.id }
             val plan = buildExecutionPlan(withItems, zoneMap)
             if (plan.isEmpty()) return@launch
+
+            // Initialize recording for this session
+            val now = System.currentTimeMillis()
+            sessionStartMs = now
+            phaseStartMs = now
+            lastHrSampleMs = 0L
+            isSaving = false
+            recordedHrSamples.clear()
+            recordedPhaseRecords.clear()
+            phaseRecordSortOrder = 0
+            capturedZones = allZones
+
             _state.value = WorkoutState.Active(
                 templateName = withItems.template.name,
                 plan = plan,
@@ -130,8 +159,21 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
     fun onBleStateChange(bleState: BleUiState) {
         val active = _state.value as? WorkoutState.Active ?: return
         val bpm = (bleState as? BleUiState.Connected)?.bpm
+
+        // Record HR sample at most once per second
+        if (bpm != null) {
+            val now = System.currentTimeMillis()
+            if (now - lastHrSampleMs >= 1_000L) {
+                recordedHrSamples += HrSample(
+                    sessionId = 0,
+                    elapsedMs = now - sessionStartMs,
+                    bpm = bpm,
+                )
+                lastHrSampleMs = now
+            }
+        }
+
         if (bpm == null) {
-            // No live reading — show "--", suspend zone compliance
             _state.value = active.copy(
                 currentBpm = null,
                 zoneCompliance = ZoneCompliance.UNKNOWN,
@@ -144,7 +186,7 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
         when {
             compliance == ZoneCompliance.IN_ZONE -> {
                 enteredTargetZone = true
-                outOfZoneSignalFired = false  // reset so leaving again will signal again
+                outOfZoneSignalFired = false
             }
             enteredTargetZone && !outOfZoneSignalFired -> {
                 triggerOutOfZoneFeedback()
@@ -170,26 +212,48 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
     }
 
     fun end() {
+        if (isSaving) return
         timerJob?.cancel()
         timerJob = null
-        _state.value = WorkoutState.Finished
+        val active = _state.value as? WorkoutState.Active ?: run {
+            _state.value = WorkoutState.Finished
+            return
+        }
+        isSaving = true
+        val elapsed = ((System.currentTimeMillis() - phaseStartMs) / 1000).toInt()
+        recordPhaseExecution(active.current, "SKIPPED", elapsed)
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { saveSession(active, earlyExit = true) }
+            _state.value = WorkoutState.Finished
+        }
     }
 
     fun skipPhase() {
         val active = _state.value as? WorkoutState.Active ?: return
-        advancePhase(active)
+        advancePhase(active, status = "SKIPPED")
     }
 
     fun exitBlock() {
         val active = _state.value as? WorkoutState.Active ?: return
+        if (isSaving) return
         val currentBlockId = active.current.blockId ?: return
+
+        val elapsed = ((System.currentTimeMillis() - phaseStartMs) / 1000).toInt()
+        recordPhaseExecution(active.current, "SKIPPED", elapsed)
+
         val exitIndex = (active.currentIndex + 1 until active.plan.size)
             .firstOrNull { active.plan[it].blockId != currentBlockId }
+
         triggerTransitionFeedback()
         if (exitIndex == null) {
+            isSaving = true
             timerJob?.cancel()
-            _state.value = WorkoutState.Finished
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) { saveSession(active, earlyExit = true) }
+                _state.value = WorkoutState.Finished
+            }
         } else {
+            phaseStartMs = System.currentTimeMillis()
             val nextPhase = active.plan[exitIndex]
             _state.value = active.copy(
                 currentIndex = exitIndex,
@@ -217,13 +281,26 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
         }
     }
 
-    private fun advancePhase(current: WorkoutState.Active) {
+    private fun advancePhase(current: WorkoutState.Active, status: String = "COMPLETED") {
+        if (isSaving) return
+        val actualDuration = if (status == "COMPLETED") {
+            current.current.durationSeconds
+        } else {
+            ((System.currentTimeMillis() - phaseStartMs) / 1000).toInt()
+        }
+        recordPhaseExecution(current.current, status, actualDuration)
+
         triggerTransitionFeedback()
         val nextIndex = current.currentIndex + 1
         if (nextIndex >= current.plan.size) {
-            _state.value = WorkoutState.Finished
+            isSaving = true
             timerJob?.cancel()
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) { saveSession(current, earlyExit = false) }
+                _state.value = WorkoutState.Finished
+            }
         } else {
+            phaseStartMs = System.currentTimeMillis()
             val nextPhase = current.plan[nextIndex]
             _state.value = current.copy(
                 currentIndex = nextIndex,
@@ -233,6 +310,49 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
                 outOfZoneSignalFired = false,
             )
         }
+    }
+
+    private fun recordPhaseExecution(phase: ExecutionPhase, status: String, actualDurationSeconds: Int) {
+        recordedPhaseRecords += SessionPhaseRecord(
+            sessionId = 0,
+            sortOrder = phaseRecordSortOrder++,
+            phaseName = phase.name,
+            plannedDurationSeconds = phase.durationSeconds,
+            actualDurationSeconds = actualDurationSeconds,
+            completionStatus = status,
+            blockId = phase.blockId,
+            blockRepIndex = phase.blockRepIndex,
+            blockTotalReps = phase.blockTotalReps,
+        )
+    }
+
+    private suspend fun saveSession(active: WorkoutState.Active, earlyExit: Boolean) {
+        val endMs = System.currentTimeMillis()
+        val completedCount = recordedPhaseRecords.count { it.completionStatus == "COMPLETED" }
+        val session = WorkoutSession(
+            templateName = active.templateName,
+            startedAt = sessionStartMs,
+            endedAt = endMs,
+            endReason = if (earlyExit) "EARLY_EXIT" else "COMPLETED",
+            totalPhasesPlanned = active.plan.size,
+            totalPhasesCompleted = completedCount,
+        )
+        val snapshots = capturedZones.map { zone ->
+            ZoneSnapshot(
+                sessionId = 0,
+                name = zone.name,
+                colorArgb = zone.colorArgb,
+                bpmMin = zone.bpmMin,
+                bpmMax = zone.bpmMax,
+                sortOrder = zone.sortOrder,
+            )
+        }
+        sessionRepo.save(
+            session = session,
+            zoneSnapshots = snapshots,
+            hrSamples = recordedHrSamples.toList(),
+            phaseRecords = recordedPhaseRecords.toList(),
+        )
     }
 
     private fun checkZoneCompliance(bpm: Int?, zones: List<HrZone>): ZoneCompliance {
@@ -252,7 +372,6 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
     }
 
     private fun triggerOutOfZoneFeedback() {
-        // Short double-pulse, distinct from the phase-transition single pulse
         vibrate(longArrayOf(0, 150, 100, 150))
         try {
             val toneGen = ToneGenerator(AudioManager.STREAM_ALARM, 70)

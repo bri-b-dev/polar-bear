@@ -14,13 +14,17 @@ import androidx.navigation.navArgument
 import dev.bri.polarphases.ui.screen.HrMonitorScreen
 import dev.bri.polarphases.ui.screen.TemplateBuilderScreen
 import dev.bri.polarphases.ui.screen.TemplateListScreen
+import dev.bri.polarphases.ui.screen.WorkoutHistoryScreen
 import dev.bri.polarphases.ui.screen.WorkoutScreen
+import dev.bri.polarphases.ui.screen.WorkoutSessionDetailScreen
 import dev.bri.polarphases.ui.screen.ZoneManagementScreen
 import dev.bri.polarphases.ui.theme.PolarPhasesTheme
 import dev.bri.polarphases.viewmodel.BleViewModel
 import dev.bri.polarphases.viewmodel.TemplateBuilderViewModel
 import dev.bri.polarphases.viewmodel.TemplateListViewModel
 import dev.bri.polarphases.viewmodel.WorkoutExecutionViewModel
+import dev.bri.polarphases.viewmodel.WorkoutHistoryViewModel
+import dev.bri.polarphases.viewmodel.WorkoutSessionDetailViewModel
 import dev.bri.polarphases.viewmodel.ZoneViewModel
 
 class MainActivity : ComponentActivity() {
@@ -55,6 +59,7 @@ class MainActivity : ComponentActivity() {
                             onNewTemplate = { navController.navigate("template_builder/0") },
                             onEditTemplate = { id -> navController.navigate("template_builder/$id") },
                             onStartWorkout = { id -> navController.navigate("workout/$id") },
+                            onNavigateToHistory = { navController.navigate("history") },
                         )
                     }
                     composable(
@@ -94,6 +99,31 @@ class MainActivity : ComponentActivity() {
                             viewModel = workoutVm,
                             bleVm = bleVm,
                             onEnd = { navController.popBackStack() },
+                        )
+                    }
+                    composable("history") {
+                        val historyVm: WorkoutHistoryViewModel = viewModel()
+                        WorkoutHistoryScreen(
+                            viewModel = historyVm,
+                            onBack = { navController.popBackStack() },
+                            onNavigateToSession = { id -> navController.navigate("history/session/$id") },
+                        )
+                    }
+                    composable(
+                        route = "history/session/{sessionId}",
+                        arguments = listOf(
+                            navArgument("sessionId") {
+                                type = NavType.LongType
+                                defaultValue = 0L
+                            }
+                        ),
+                    ) { backStackEntry ->
+                        val sessionId = backStackEntry.arguments?.getLong("sessionId") ?: 0L
+                        val detailVm: WorkoutSessionDetailViewModel = viewModel()
+                        WorkoutSessionDetailScreen(
+                            viewModel = detailVm,
+                            sessionId = sessionId,
+                            onBack = { navController.popBackStack() },
                         )
                     }
                 }

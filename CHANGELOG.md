@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (Placeholder for fixes)
 
+## [0.7.0] - 2026-06-21
+
+### Added
+- Workout sessions are saved locally on completion or early exit: date, template name, HR time series, and phase sequence (F-5.1)
+- Zone definitions are frozen as an immutable snapshot at save time — editing zones after a session never alters its historical record (F-2.4, F-2.5)
+- Early exits are noted in the record; repeat blocks that were exited before all reps completed show "X of Y repetitions completed" in the session detail view (F-5.5)
+- Workout history list accessible via "History" button on the Templates screen, showing all past sessions with date, duration, phase count, and early-exit indicator (F-5.2)
+- Session detail view with a zone-colored HR graph (time vs. BPM, zone bands as background) and zone legend (F-5.3)
+- Room database migrated from version 3 to 4: adds `workout_sessions`, `zone_snapshots`, `hr_samples`, and `session_phase_records` tables with cascade-delete foreign keys
+
 ## [0.6.0] - 2026-06-21
 
 ### Added

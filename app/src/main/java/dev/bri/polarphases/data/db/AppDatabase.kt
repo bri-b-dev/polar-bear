@@ -7,9 +7,13 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import dev.bri.polarphases.data.model.BlockPhase
+import dev.bri.polarphases.data.model.HrSample
 import dev.bri.polarphases.data.model.HrZone
+import dev.bri.polarphases.data.model.SessionPhaseRecord
 import dev.bri.polarphases.data.model.TemplateSequenceItem
+import dev.bri.polarphases.data.model.WorkoutSession
 import dev.bri.polarphases.data.model.WorkoutTemplate
+import dev.bri.polarphases.data.model.ZoneSnapshot
 import dev.bri.polarphases.util.defaultZones
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,13 +25,18 @@ import kotlinx.coroutines.launch
         WorkoutTemplate::class,
         TemplateSequenceItem::class,
         BlockPhase::class,
+        WorkoutSession::class,
+        ZoneSnapshot::class,
+        HrSample::class,
+        SessionPhaseRecord::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun hrZoneDao(): HrZoneDao
     abstract fun workoutTemplateDao(): WorkoutTemplateDao
+    abstract fun workoutSessionDao(): WorkoutSessionDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
@@ -143,6 +152,75 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS workout_sessions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        templateName TEXT NOT NULL,
+                        startedAt INTEGER NOT NULL,
+                        endedAt INTEGER NOT NULL,
+                        endReason TEXT NOT NULL,
+                        totalPhasesPlanned INTEGER NOT NULL,
+                        totalPhasesCompleted INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS zone_snapshots (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        sessionId INTEGER NOT NULL,
+                        name TEXT NOT NULL,
+                        colorArgb INTEGER NOT NULL,
+                        bpmMin INTEGER NOT NULL,
+                        bpmMax INTEGER NOT NULL,
+                        sortOrder INTEGER NOT NULL,
+                        FOREIGN KEY(sessionId) REFERENCES workout_sessions(id) ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_zone_snapshots_sessionId ON zone_snapshots(sessionId)"
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS hr_samples (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        sessionId INTEGER NOT NULL,
+                        elapsedMs INTEGER NOT NULL,
+                        bpm INTEGER NOT NULL,
+                        FOREIGN KEY(sessionId) REFERENCES workout_sessions(id) ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_hr_samples_sessionId ON hr_samples(sessionId)"
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS session_phase_records (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        sessionId INTEGER NOT NULL,
+                        sortOrder INTEGER NOT NULL,
+                        phaseName TEXT NOT NULL,
+                        plannedDurationSeconds INTEGER NOT NULL,
+                        actualDurationSeconds INTEGER NOT NULL,
+                        completionStatus TEXT NOT NULL,
+                        blockId INTEGER,
+                        blockRepIndex INTEGER,
+                        blockTotalReps INTEGER,
+                        FOREIGN KEY(sessionId) REFERENCES workout_sessions(id) ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_session_phase_records_sessionId ON session_phase_records(sessionId)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -150,7 +228,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "polar_phases.db",
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .addCallback(SeedCallback())
                     .build()
                     .also { INSTANCE = it }

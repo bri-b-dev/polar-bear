@@ -40,6 +40,7 @@ fun TemplateListScreen(
     onNewTemplate: () -> Unit,
     onEditTemplate: (Long) -> Unit,
     onStartWorkout: (Long) -> Unit,
+    onNavigateToHistory: () -> Unit,
 ) {
     val templates by viewModel.templates.collectAsState()
 
@@ -50,6 +51,11 @@ fun TemplateListScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    androidx.compose.material3.TextButton(onClick = onNavigateToHistory) {
+                        Text("History")
                     }
                 },
             )
