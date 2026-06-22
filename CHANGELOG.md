@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (Placeholder for fixes)
 
+## [0.8.1] - 2026-06-22
+
+### Changed
+- HR zone seed calculation switched from Karvonen (HRR-based) to straight HRmax percentages: Recovery 50–60%, Endurance 60–70%, Tempo 70–80%, Threshold 80–90%, Peak 90–100%
+- Zone seed dialog no longer requires resting HR — only Max HR is needed
+- "Karvonen" button on the HR Zones screen relabelled to "% HRmax"
+
 ## [0.8.0] - 2026-06-22
 
 ### Added
