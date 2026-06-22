@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.bri.polarbear.ble.BleUiState
 import dev.bri.polarbear.data.model.HrZone
 import dev.bri.polarbear.viewmodel.BleViewModel
 import dev.bri.polarbear.viewmodel.ExecutionPhase
@@ -94,6 +95,7 @@ fun WorkoutScreen(
         }
         is WorkoutState.Active -> {
             var isOverviewOpen by rememberSaveable { mutableStateOf(false) }
+            val isReconnecting = bleState is BleUiState.Reconnecting
 
             Scaffold(
                 topBar = {
@@ -122,6 +124,28 @@ fun WorkoutScreen(
                         .padding(padding),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    if (isReconnecting) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.errorContainer)
+                                .padding(horizontal = 16.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                            )
+                            Spacer(Modifier.size(8.dp))
+                            Text(
+                                text = "Reconnecting to sensor…",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                            )
+                        }
+                    }
                     BpmSection(modifier = Modifier.weight(0.30f), state = state)
                     HorizontalDivider()
                     PhaseSection(modifier = Modifier.weight(0.42f), state = state)

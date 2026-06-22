@@ -2,6 +2,12 @@
 
 **Phase-based heart rate training control with Polar H10 chest strap**
 
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.0-blue.svg)](https://kotlinlang.org/)
+[![Android API 28+](https://img.shields.io/badge/Android-API%2028%2B-green.svg)](https://www.android.com/)
+[![Jetpack Compose](https://img.shields.io/badge/Jetpack-Compose-4285F4.svg)](https://developer.android.com/jetpack/compose)
+[![Status: Early Development](https://img.shields.io/badge/Status-Early%20Development-orange.svg)](#)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Native Android app that connects directly via Bluetooth Low Energy (BLE) to the Polar H10 and enables reusable, phase-based zone training with live feedback. Designed as a functional replacement for missing functionality in Polar Beat/Flow when no compatible Polar watch is available.
 
 ## Features
@@ -13,14 +19,17 @@ Native Android app that connects directly via Bluetooth Low Energy (BLE) to the 
   - Individual phases with duration and target zone
   - Repeat blocks (e.g., 6× [Load → Recovery])
   - Flat structure (no nested repeat blocks)
+  - Phase/block reordering and template duplication
 - **Live workout execution** with:
   - Real-time HR display, phase timer, and zone feedback
   - Visual, auditory, and vibration alerts on zone boundary violations
   - Manual phase skip or full repeat-block exit
   - Comprehensive workout overview with progress bar and expandable phase list
   - Screen stays on during active workout
-- **Workout history** – local recording with HR time series, exportable for external analysis
+- **Workout history** – local recording with HR time series; TCX export for external analysis (e.g., Garmin Connect, Golden Cheetah)
 - **Zone snapshots** – historical zone definitions are immutable per session; later zone changes do not affect past records
+- **Auto-reconnect** – remembers the last H10 and reconnects automatically on startup; reconnect status shown during active workouts
+- **Sensor battery level** – displays H10 battery % when available via BLE Battery Service
 
 ### Integration
 - **Dual tracking** – simultaneous operation with Polar Beat via H10's multi-connection capability
@@ -139,7 +148,7 @@ Refer to these files for architecture and requirements decisions:
 
 ---
 
-**Status:** Slice 01 (BLE Spike) scaffold complete. Single `:app` module, package `dev.bri.polarbear`.
+**Status:** v0.8.0 — all core slices (01–08) complete. Single `:app` module, package `dev.bri.polarbear`.
 
 **Installation method:** Manual compilation and sideloading (not Play Store).
 

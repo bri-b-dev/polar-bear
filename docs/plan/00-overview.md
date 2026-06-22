@@ -1,4 +1,4 @@
-# Polar-Phases — Vertical-Slice Plan: Overview
+# Polar Bear — Vertical-Slice Plan: Overview
 
 This document breaks [`docs/requirements-spec.md`](../requirements-spec.md) into **vertical,
 end-to-end slices**. Each slice is individually buildable in Android Studio, testable, and
@@ -144,13 +144,13 @@ not second owners (see notes).
 
 ### Recording and History (F-5.x)
 
-| ID | Priority | Owner | Notes |
-|----|----------|-------|-------|
-| F-5.1 | Must | 07 | Save date, template, phase sequence, HR time series |
-| F-5.2 | Should | 07 | List of past workouts |
+| ID | Priority | Owner | Notes                                                       |
+|----|----------|-------|-------------------------------------------------------------|
+| F-5.1 | Must | 07 | Save date, template, phase sequence, HR time series         |
+| F-5.2 | Should | 07 | List of past workouts                                       |
 | F-5.3 | Should | 07 | Simple HR graph (zone-colored bg) — drop to 08 if not cheap |
-| F-5.4 | May | 08 | CSV export — polish |
-| F-5.5 | Should | 07 | Note early exits ("4 of 6 reps") |
+| F-5.4 | May | 08 | TCX export — polish                                         |
+| F-5.5 | Should | 07 | Note early exits ("4 of 6 reps")                            |
 
 ### Non-Functional (N-x)
 

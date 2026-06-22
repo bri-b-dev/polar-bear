@@ -12,6 +12,10 @@ class BleViewModel(application: Application) : AndroidViewModel(application) {
     private val bleManager = BleManager(application)
     val state: StateFlow<BleUiState> = bleManager.state
 
+    init {
+        bleManager.tryAutoReconnect()
+    }
+
     fun startScan() = bleManager.startScan()
     fun stopScan() = bleManager.stopScan()
     fun connect(device: ScannedDevice) = bleManager.connect(device)

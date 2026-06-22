@@ -1,5 +1,6 @@
 package dev.bri.polarbear.ui.screen
 
+import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +25,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,13 +39,16 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import dev.bri.polarbear.data.model.HrSample
 import dev.bri.polarbear.data.model.SessionPhaseRecord
 import dev.bri.polarbear.data.model.WorkoutSessionWithDetails
 import dev.bri.polarbear.data.model.ZoneSnapshot
 import dev.bri.polarbear.viewmodel.WorkoutSessionDetailViewModel
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -57,6 +62,21 @@ fun WorkoutSessionDetailScreen(
 ) {
     LaunchedEffect(sessionId) { viewModel.load(sessionId) }
     val details by viewModel.details.collectAsState()
+    val exportFilePath by viewModel.exportFilePath.collectAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(exportFilePath) {
+        val path = exportFilePath ?: return@LaunchedEffect
+        val file = File(path)
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/vnd.garmin.tcx+xml"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, "Export TCX"))
+        viewModel.clearExportRequest()
+    }
 
     Scaffold(
         topBar = {
@@ -65,6 +85,13 @@ fun WorkoutSessionDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    if (details != null) {
+                        TextButton(onClick = { viewModel.exportTcx(context) }) {
+                            Text("Export TCX")
+                        }
                     }
                 },
             )

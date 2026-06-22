@@ -12,7 +12,7 @@ Authoritative sources, do not duplicate in this file:
 
 ## Project Status
 
-**Slice 01 (BLE Spike) scaffold complete.** Single `:app` module, package `dev.bri.polarbear`.
+**v0.8.0 — all 8 slices complete (01–08).** Single `:app` module, package `dev.bri.polarbear`.
 
 ### Build & Install
 

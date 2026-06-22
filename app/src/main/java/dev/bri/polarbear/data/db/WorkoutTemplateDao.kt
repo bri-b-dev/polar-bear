@@ -21,6 +21,10 @@ interface WorkoutTemplateDao {
     @Query("SELECT * FROM workout_templates WHERE id = :id")
     fun observeWithItems(id: Long): Flow<WorkoutTemplateWithItems?>
 
+    @Transaction
+    @Query("SELECT * FROM workout_templates WHERE id = :id")
+    suspend fun getWithItems(id: Long): WorkoutTemplateWithItems?
+
     @Insert
     suspend fun insert(template: WorkoutTemplate): Long
 

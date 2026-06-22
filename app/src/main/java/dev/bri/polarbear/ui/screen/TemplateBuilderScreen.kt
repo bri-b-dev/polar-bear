@@ -24,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -118,16 +120,22 @@ fun TemplateBuilderScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 itemsIndexed(sequenceItems) { index, item ->
+                    val canMoveUp = index > 0
+                    val canMoveDown = index < sequenceItems.size - 1
                     when (item) {
                         is SequenceItemDraft.Phase -> PhaseItemCard(
                             item = item,
                             onEdit = { viewModel.openEditPhaseDialog(index) },
                             onDelete = { viewModel.removeSequenceItem(index) },
+                            onMoveUp = if (canMoveUp) { { viewModel.moveItemUp(index) } } else null,
+                            onMoveDown = if (canMoveDown) { { viewModel.moveItemDown(index) } } else null,
                         )
                         is SequenceItemDraft.Block -> BlockItemCard(
                             item = item,
                             onEdit = { viewModel.openEditBlockDialog(index) },
                             onDelete = { viewModel.removeSequenceItem(index) },
+                            onMoveUp = if (canMoveUp) { { viewModel.moveItemUp(index) } } else null,
+                            onMoveDown = if (canMoveDown) { { viewModel.moveItemDown(index) } } else null,
                         )
                     }
                 }
@@ -194,6 +202,8 @@ private fun PhaseItemCard(
     item: SequenceItemDraft.Phase,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onMoveUp: (() -> Unit)?,
+    onMoveDown: (() -> Unit)?,
 ) {
     Row(
         modifier = Modifier
@@ -202,6 +212,23 @@ private fun PhaseItemCard(
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Column {
+            IconButton(
+                onClick = { onMoveUp?.invoke() },
+                enabled = onMoveUp != null,
+                modifier = Modifier.size(28.dp),
+            ) {
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move up", modifier = Modifier.size(18.dp))
+            }
+            IconButton(
+                onClick = { onMoveDown?.invoke() },
+                enabled = onMoveDown != null,
+                modifier = Modifier.size(28.dp),
+            ) {
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move down", modifier = Modifier.size(18.dp))
+            }
+        }
+        Spacer(Modifier.width(4.dp))
         ZoneDots(colors = item.zoneColors, size = 20)
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -230,6 +257,8 @@ private fun BlockItemCard(
     item: SequenceItemDraft.Block,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onMoveUp: (() -> Unit)?,
+    onMoveDown: (() -> Unit)?,
 ) {
     Column(
         modifier = Modifier
@@ -238,6 +267,23 @@ private fun BlockItemCard(
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            Column {
+                IconButton(
+                    onClick = { onMoveUp?.invoke() },
+                    enabled = onMoveUp != null,
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move up", modifier = Modifier.size(18.dp))
+                }
+                IconButton(
+                    onClick = { onMoveDown?.invoke() },
+                    enabled = onMoveDown != null,
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move down", modifier = Modifier.size(18.dp))
+                }
+            }
+            Spacer(Modifier.width(4.dp))
             Text(
                 "${item.repeatCount}×",
                 style = MaterialTheme.typography.labelLarge,

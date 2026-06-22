@@ -115,12 +115,12 @@ Since the official Polar interface (AccessLink/API v4) is exclusively read-only 
 
 ### 4.5 Recording and History
 
-| ID | Requirement | Priority |
-|----|-------------|-----------|
-| F-5.1 | Each completed workout is saved locally: date, template used, phase sequence, HR time series. | Must |
-| F-5.2 | The user can view past workouts in a list. | Should |
-| F-5.3 | For a past workout, a simple HR progression graph can be displayed (time vs. bpm, with zone color background). | Should |
-| F-5.4 | The user can export a past workout (e.g., CSV) for external processing. | May |
+| ID | Requirement                                                                                                                           | Priority |
+|----|---------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| F-5.1 | Each completed workout is saved locally: date, template used, phase sequence, HR time series.                                         | Must |
+| F-5.2 | The user can view past workouts in a list.                                                                                            | Should |
+| F-5.3 | For a past workout, a simple HR progression graph can be displayed (time vs. bpm, with zone color background).                        | Should |
+| F-5.4 | The user can export a past workout (e.g., TCX) for external processing.                                                               | May |
 | F-5.5 | If a phase or repeat block was exited early (F-4.7/F-4.7a), this is noted in the saved record (e.g., "4 of 6 repetitions completed"). | Should |
 
 ---

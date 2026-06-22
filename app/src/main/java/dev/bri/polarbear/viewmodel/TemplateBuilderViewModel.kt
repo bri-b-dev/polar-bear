@@ -253,6 +253,21 @@ class TemplateBuilderViewModel(application: Application) : AndroidViewModel(appl
         sequenceItems.value = sequenceItems.value.filterIndexed { i, _ -> i != index }
     }
 
+    fun moveItemUp(index: Int) {
+        if (index <= 0) return
+        val list = sequenceItems.value.toMutableList()
+        val tmp = list[index - 1]; list[index - 1] = list[index]; list[index] = tmp
+        sequenceItems.value = list
+    }
+
+    fun moveItemDown(index: Int) {
+        val list = sequenceItems.value
+        if (index >= list.size - 1) return
+        val mutable = list.toMutableList()
+        val tmp = mutable[index + 1]; mutable[index + 1] = mutable[index]; mutable[index] = tmp
+        sequenceItems.value = mutable
+    }
+
     // ── Save ──────────────────────────────────────────────────────────────────
 
     fun saveTemplate() {

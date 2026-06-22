@@ -91,6 +91,7 @@ fun TemplateListScreen(
                         template = template,
                         onStart = { onStartWorkout(template.id) },
                         onEdit = { onEditTemplate(template.id) },
+                        onDuplicate = { viewModel.duplicateTemplate(template.id) },
                         onDelete = { viewModel.deleteTemplate(template.id) },
                     )
                 }
@@ -104,6 +105,7 @@ private fun TemplateRow(
     template: WorkoutTemplate,
     onStart: () -> Unit,
     onEdit: () -> Unit,
+    onDuplicate: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Row(
@@ -123,6 +125,9 @@ private fun TemplateRow(
         }
         IconButton(onClick = onEdit) {
             Icon(Icons.Default.Edit, contentDescription = "Edit template")
+        }
+        IconButton(onClick = onDuplicate) {
+            Icon(Icons.Default.Add, contentDescription = "Duplicate template")
         }
         IconButton(onClick = onDelete) {
             Icon(Icons.Default.Delete, contentDescription = "Delete template")

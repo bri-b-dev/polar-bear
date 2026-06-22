@@ -68,7 +68,7 @@ fun HrMonitorScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Polar Phases") },
+                title = { Text("Polar Bear") },
                 actions = {
                     TextButton(onClick = onNavigateToTemplates) { Text("Templates") }
                     IconButton(onClick = onNavigateToZones) {
@@ -147,6 +147,7 @@ private fun BleContent(
         is BleUiState.Connected -> ConnectedContent(
             deviceName = state.deviceName,
             bpm = state.bpm,
+            batteryLevel = state.batteryLevel,
             onDisconnect = onDisconnect,
         )
         is BleUiState.Error -> ErrorContent(message = state.message, onRetry = onScan)
@@ -251,7 +252,7 @@ private fun ConnectingContent(deviceName: String) {
 }
 
 @Composable
-private fun ConnectedContent(deviceName: String, bpm: Int?, onDisconnect: () -> Unit) {
+private fun ConnectedContent(deviceName: String, bpm: Int?, batteryLevel: Int?, onDisconnect: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -272,6 +273,14 @@ private fun ConnectedContent(deviceName: String, bpm: Int?, onDisconnect: () -> 
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (batteryLevel != null) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "Battery: $batteryLevel%",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Spacer(Modifier.height(32.dp))
         OutlinedButton(onClick = onDisconnect) { Text("Disconnect") }
     }

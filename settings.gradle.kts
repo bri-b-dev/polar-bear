@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "PolarPhases"
+rootProject.name = "polar-bear"
 include(":app")

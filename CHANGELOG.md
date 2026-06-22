@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (Placeholder for fixes)
 
+## [0.8.0] - 2026-06-22
+
+### Added
+- App remembers the last connected H10 and auto-reconnects on startup — no manual scan needed if the strap was connected before (F-1.3)
+- Reconnect status banner shown during active workouts when the sensor connection drops and is being recovered (F-1.4)
+- Battery level of the H10 displayed on the monitor screen when available via BLE Battery Service (0x180F) (F-1.5)
+- Phase/block reordering in the template builder via up/down arrow buttons (F-3.3)
+- Template duplication from the template list — creates a copy with "(copy)" appended to the name (F-3.4)
+- TCX export for past workout sessions: "Export TCX" button on the session detail screen shares a standard TCX file with heart rate time series (F-5.4)
+
 ## [0.7.2] - 2026-06-22
 
 ### Changed

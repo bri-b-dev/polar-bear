@@ -12,7 +12,7 @@ blocking the core product.
   by execution in Slice 04; this adds only the status UI) (F-1.4).
 - It shows **battery/signal** of the sensor if available via BLE (F-1.5).
 - Templates support **reordering** phases via drag/arrow (F-3.3) and **duplication** (F-3.4).
-- I can **export a past workout as CSV** for external processing (F-5.4).
+- I can **export a past workout as TCX** for external processing (F-5.4).
 - A final pass on **display readability** (refines N-4) and **overview performance** (refines
   N-7) — refinement of already-covered NFRs, not new coverage.
 

@@ -70,6 +70,38 @@ class TemplateRepository(private val dao: WorkoutTemplateDao) {
         )
     )
 
+    suspend fun duplicateTemplate(id: Long) {
+        val source = dao.getWithItems(id) ?: return
+        val newId = createTemplate("${source.template.name} (copy)")
+        source.items.sortedBy { it.item.sortOrder }.forEachIndexed { idx, itemWithPhases ->
+            when (itemWithPhases.item.itemType) {
+                ITEM_TYPE_PHASE -> addPhaseItem(
+                    templateId = newId,
+                    sortOrder = idx,
+                    name = itemWithPhases.item.phaseName ?: "",
+                    durationSeconds = itemWithPhases.item.durationSeconds ?: 0,
+                    zoneIds = itemWithPhases.item.zoneIds?.toZoneIdList() ?: emptyList(),
+                )
+                ITEM_TYPE_BLOCK -> {
+                    val blockId = addBlockItem(
+                        templateId = newId,
+                        sortOrder = idx,
+                        repeatCount = itemWithPhases.item.repeatCount ?: 1,
+                    )
+                    itemWithPhases.blockPhases.sortedBy { it.sortOrder }.forEachIndexed { pIdx, bp ->
+                        addBlockPhase(
+                            sequenceItemId = blockId,
+                            sortOrder = pIdx,
+                            name = bp.phaseName,
+                            durationSeconds = bp.durationSeconds,
+                            zoneIds = bp.zoneIds.toZoneIdList(),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     companion object {
         const val ITEM_TYPE_PHASE = "PHASE"
         const val ITEM_TYPE_BLOCK = "BLOCK"

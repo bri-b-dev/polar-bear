@@ -20,4 +20,8 @@ class TemplateListViewModel(application: Application) : AndroidViewModel(applica
     fun deleteTemplate(id: Long) {
         viewModelScope.launch { repo.deleteTemplate(id) }
     }
+
+    fun duplicateTemplate(id: Long) {
+        viewModelScope.launch { repo.duplicateTemplate(id) }
+    }
 }
