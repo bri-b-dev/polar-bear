@@ -6,6 +6,7 @@ import android.media.ToneGenerator
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -20,6 +21,7 @@ import dev.bri.polarbear.data.model.WorkoutSession
 import dev.bri.polarbear.data.model.WorkoutTemplateWithItems
 import dev.bri.polarbear.data.model.ZoneSnapshot
 import dev.bri.polarbear.repository.toZoneIdList
+import dev.bri.polarbear.service.WorkoutForegroundService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -152,6 +154,7 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
                 outOfZoneSignalFired = false,
                 isPaused = false,
             )
+            WorkoutForegroundService.start(getApplication())
             startTimer()
         }
     }
@@ -216,6 +219,7 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
         timerJob?.cancel()
         timerJob = null
         val active = _state.value as? WorkoutState.Active ?: run {
+            WorkoutForegroundService.stop(getApplication())
             _state.value = WorkoutState.Finished
             return
         }
@@ -224,6 +228,7 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
         recordPhaseExecution(active.current, "SKIPPED", elapsed)
         viewModelScope.launch {
             withContext(Dispatchers.IO) { saveSession(active, earlyExit = true) }
+            WorkoutForegroundService.stop(getApplication())
             _state.value = WorkoutState.Finished
         }
     }
@@ -250,6 +255,7 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
             timerJob?.cancel()
             viewModelScope.launch {
                 withContext(Dispatchers.IO) { saveSession(active, earlyExit = true) }
+                WorkoutForegroundService.stop(getApplication())
                 _state.value = WorkoutState.Finished
             }
         } else {
@@ -268,14 +274,38 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
     private fun startTimer() {
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
+            // Wall-clock based: if ticks are delayed or the process was briefly
+            // frozen while backgrounded, the elapsed time is consumed on the
+            // next tick instead of being lost.
+            var lastTickMs = SystemClock.elapsedRealtime()
+            var carryMs = 0L
             while (true) {
-                delay(1_000)
+                delay(250)
+                val now = SystemClock.elapsedRealtime()
                 val active = _state.value as? WorkoutState.Active ?: break
-                if (active.isPaused) continue
-                if (active.remainingSeconds <= 1) {
-                    advancePhase(active)
-                } else {
-                    _state.value = active.copy(remainingSeconds = active.remainingSeconds - 1)
+                if (active.isPaused) {
+                    lastTickMs = now
+                    carryMs = 0L
+                    continue
+                }
+                carryMs += now - lastTickMs
+                lastTickMs = now
+                var secondsToConsume = (carryMs / 1_000L).toInt()
+                if (secondsToConsume == 0) continue
+                carryMs %= 1_000L
+
+                var current = active
+                while (secondsToConsume > 0) {
+                    if (secondsToConsume < current.remainingSeconds) {
+                        _state.value = current.copy(
+                            remainingSeconds = current.remainingSeconds - secondsToConsume,
+                        )
+                        break
+                    }
+                    secondsToConsume -= current.remainingSeconds
+                    advancePhase(current)
+                    current = _state.value as? WorkoutState.Active ?: return@launch
+                    if (isSaving) return@launch
                 }
             }
         }
@@ -297,6 +327,7 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
             timerJob?.cancel()
             viewModelScope.launch {
                 withContext(Dispatchers.IO) { saveSession(current, earlyExit = false) }
+                WorkoutForegroundService.stop(getApplication())
                 _state.value = WorkoutState.Finished
             }
         } else {
@@ -399,6 +430,7 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
+        WorkoutForegroundService.stop(getApplication())
     }
 }
 

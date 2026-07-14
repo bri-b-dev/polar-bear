@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Polar Bear</string>
+    <string name="workout_notification_channel">Active workout</string>
+    <string name="workout_notification_title">Workout in progress</string>
+    <string name="workout_notification_text">Phase timer and heart rate tracking are running.</string>
 </resources>
