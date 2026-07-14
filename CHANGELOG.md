@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (Placeholder for fixes)
 
+## [0.8.2] - 2026-07-14
+
+### Fixed
+- Workout timer no longer stops when the app is moved to the background (e.g. while watching Netflix). An active workout now runs in a foreground service with a wake lock, so phase transitions, vibration feedback and out-of-zone alerts keep working with the screen off or another app in front.
+- Phase countdown is now wall-clock based: if the process is briefly throttled, the elapsed time is caught up instead of lost.
+
 ## [0.8.1] - 2026-06-22
 
 ### Changed
