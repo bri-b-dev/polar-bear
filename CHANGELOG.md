@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - (Placeholder for fixes)
 
+## [0.9.0] - 2026-11-16
+
+### Added
+- Status-bar notification during a workout: current zone and remaining time, plus phase name, bpm and the next phase. Tapping it returns to the app.
+- Heads-up alert on every phase change (also on Skip / Exit Block) showing the new phase, its target zone and duration, and what comes next.
+- Heads-up alert when the heart rate leaves the target zone (too high / too low).
+
+### Changed
+- Pressing Back or "End" during a workout now asks for confirmation instead of ending the workout immediately, so an accidental press no longer discards the session.
+
 ## [0.8.2] - 2026-07-14
 
 ### Fixed
