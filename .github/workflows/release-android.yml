@@ -26,11 +26,10 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           cache: gradle
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
+      # The runner image ships the Android SDK (ANDROID_HOME). android-actions/setup-android@v3
+      # fails on current images ("Failed to find package 'tools'"), so use the preinstalled SDK.
       - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       - name: Debug available secrets
         run: |
