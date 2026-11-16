@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Build
 import android.view.WindowManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -23,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -114,6 +116,9 @@ fun WorkoutScreen(
         }
         is WorkoutState.Active -> {
             var isOverviewOpen by rememberSaveable { mutableStateOf(false) }
+            var isEndConfirmOpen by rememberSaveable { mutableStateOf(false) }
+            // Back press must not silently abort the workout (accidental taps)
+            BackHandler { isEndConfirmOpen = true }
             val isReconnecting = bleState is BleUiState.Reconnecting
 
             Scaffold(
@@ -130,7 +135,7 @@ fun WorkoutScreen(
                             TextButton(onClick = { isOverviewOpen = true }) {
                                 Text("Overview")
                             }
-                            TextButton(onClick = viewModel::end) {
+                            TextButton(onClick = { isEndConfirmOpen = true }) {
                                 Text("End", color = MaterialTheme.colorScheme.error)
                             }
                         },
@@ -178,6 +183,27 @@ fun WorkoutScreen(
                         onExitBlock = viewModel::exitBlock,
                     )
                 }
+            }
+
+            if (isEndConfirmOpen) {
+                AlertDialog(
+                    onDismissRequest = { isEndConfirmOpen = false },
+                    title = { Text("End workout?") },
+                    text = { Text("The workout will be stopped and saved as ended early.") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            isEndConfirmOpen = false
+                            viewModel.end()
+                        }) {
+                            Text("End workout", color = MaterialTheme.colorScheme.error)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { isEndConfirmOpen = false }) {
+                            Text("Continue")
+                        }
+                    },
+                )
             }
 
             if (isOverviewOpen) {

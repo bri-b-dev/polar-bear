@@ -13,6 +13,7 @@ import android.os.VibratorManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.bri.polarbear.PolarBearApp
+import dev.bri.polarbear.WorkoutNotifier
 import dev.bri.polarbear.ble.BleUiState
 import dev.bri.polarbear.data.model.HrSample
 import dev.bri.polarbear.data.model.HrZone
@@ -110,6 +111,7 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
     val state: StateFlow<WorkoutState> = _state.asStateFlow()
 
     private var timerJob: Job? = null
+    private var notificationJob: Job? = null
 
     // Session recording state — reset on each loadAndStart
     private var sessionStartMs = 0L
@@ -156,6 +158,22 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
             )
             WorkoutForegroundService.start(getApplication())
             startTimer()
+            startStatusBar()
+        }
+    }
+
+    // Status-bar notification: mirrors the state (zone, remaining time, bpm) while a workout runs.
+    private fun startStatusBar() {
+        val ctx = getApplication<Application>()
+        notificationJob?.cancel()
+        notificationJob = viewModelScope.launch {
+            _state.collect { s ->
+                when (s) {
+                    is WorkoutState.Active -> WorkoutNotifier.update(ctx, s)
+                    is WorkoutState.Finished -> WorkoutNotifier.cancelAll(ctx)
+                    else -> Unit
+                }
+            }
         }
     }
 
@@ -193,6 +211,7 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
             }
             enteredTargetZone && !outOfZoneSignalFired -> {
                 triggerOutOfZoneFeedback()
+                WorkoutNotifier.outOfZone(getApplication(), compliance, active.current.targetZones)
                 outOfZoneSignalFired = true
             }
         }
@@ -261,6 +280,7 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
         } else {
             phaseStartMs = System.currentTimeMillis()
             val nextPhase = active.plan[exitIndex]
+            WorkoutNotifier.phaseChanged(getApplication(), nextPhase, active.plan.getOrNull(exitIndex + 1))
             _state.value = active.copy(
                 currentIndex = exitIndex,
                 remainingSeconds = nextPhase.durationSeconds,
@@ -333,6 +353,7 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
         } else {
             phaseStartMs = System.currentTimeMillis()
             val nextPhase = current.plan[nextIndex]
+            WorkoutNotifier.phaseChanged(getApplication(), nextPhase, current.plan.getOrNull(nextIndex + 1))
             _state.value = current.copy(
                 currentIndex = nextIndex,
                 remainingSeconds = nextPhase.durationSeconds,
@@ -430,6 +451,7 @@ class WorkoutExecutionViewModel(application: Application) : AndroidViewModel(app
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
+        notificationJob?.cancel()
         WorkoutForegroundService.stop(getApplication())
     }
 }
